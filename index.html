@@ -1,0 +1,756 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Sector Flow Scanner</title>
+
+<style>
+    /* =========================================================
+   DESIGN TOKENS / THEME
+   ========================================================= */
+:root{
+  --bg:#020617;
+  --panel:#0b1220;
+  --panel2:#0f172a;
+  --border:#1e293b;
+  --text:#e5e7eb;
+  --muted:#94a3b8;
+
+  --green:#22c55e;
+  --red:#ef4444;
+  --cyan:#38bdf8;
+  --purple:#a78bfa;
+  --orange:#fb923c;
+}
+
+/* =========================================================
+   BASE RESET
+   ========================================================= */
+*{ box-sizing:border-box; }
+
+body{
+  margin:0;
+  padding:22px;
+  background:radial-gradient(1200px 600px at 20% -10%, #0b1220, #020617);
+  color:var(--text);
+  font-family:Inter,system-ui;
+}
+
+/* =========================================================
+   LOADER
+   ========================================================= */
+#loader{
+  position:fixed;
+  inset:0;
+  background:#020617;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  z-index:9999;
+}
+
+.loader-box{ width:360px; text-align:center; }
+
+.loader-box h2{
+  margin:0 0 12px;
+  color:var(--cyan);
+  font-size:20px;
+}
+
+.progress-track{
+  height:10px;
+  background:#1e293b;
+  border-radius:8px;
+  overflow:hidden;
+}
+
+.progress-bar{
+  height:100%;
+  width:0%;
+  background:linear-gradient(90deg,#22c55e,#38bdf8,#a78bfa);
+  transition:width .3s ease;
+}
+
+.loader-meta{
+  margin-top:10px;
+  font-size:13px;
+  color:var(--muted);
+}
+
+/* =========================================================
+   HEADER
+   ========================================================= */
+.header{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-end;
+  margin-bottom:14px;
+}
+
+h1{ margin:0; font-size:22px; }
+.meta{ font-size:13px; color:var(--muted); }
+
+/* =========================================================
+   GRID LAYOUTS
+   ========================================================= */
+.grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
+  gap:18px;
+}
+
+#vwapLeaders{
+  grid-template-columns:repeat(auto-fit,minmax(360px,1fr));
+}
+
+#grid{ margin-top:32px; }
+
+/* =========================================================
+   SECTOR CARDS (STANDARD)
+   ========================================================= */
+.card{
+  background:linear-gradient(180deg,var(--panel),var(--panel2));
+  border:1px solid var(--border);
+  border-radius:18px;
+  padding:16px;
+}
+
+/* =========================================================
+   SIGNAL CARDS (GLASS / DIFFERENT LOOK)
+   ========================================================= */
+.signal-card{
+  position:relative;
+  padding:20px;
+  border-radius:22px;
+
+  background:rgba(15,23,42,.85); /* fallback */
+  border:1px solid rgba(255,255,255,.18);
+
+  box-shadow:
+    0 30px 80px rgba(0,0,0,.65),
+    inset 0 1px 0 rgba(255,255,255,.08);
+
+  overflow:hidden;
+}
+
+/* Progressive enhancement */
+@supports ((-webkit-backdrop-filter: blur(10px)) or (backdrop-filter: blur(10px))){
+  .signal-card{
+    background:
+      linear-gradient(
+        135deg,
+        rgba(255,255,255,.08),
+        rgba(255,255,255,.02)
+      );
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+  }
+}
+
+/* Glow aura */
+.signal-card::before{
+  content:"";
+  position:absolute;
+  inset:-2px;
+  border-radius:22px;
+  background:linear-gradient(120deg,#38bdf8,#22c55e,#a78bfa);
+  filter:blur(18px);
+  opacity:.45;
+  z-index:-1;
+}
+
+/* Hover lift */
+.signal-card:hover{
+  transform:translateY(-4px);
+  transition:all .25s ease;
+}
+/* ================= VWAP COLORS ================= */
+.vwap-pos{
+  color: var(--green) !important;
+  font-weight: 900;
+}
+
+.vwap-neg{
+  color: var(--red) !important;
+  font-weight: 900;
+}
+
+/* =========================================================
+   SIGNAL TITLES
+   ========================================================= */
+.signal-title{
+  display:flex;
+  align-items:center;
+  gap:12px;
+  font-size:13px;
+  font-weight:900;
+  letter-spacing:2px;
+  text-transform:uppercase;
+  margin-bottom:16px;
+  padding-bottom:10px;
+  border-bottom:1px solid rgba(255,255,255,.15);
+}
+
+.signal-title span{
+  font-size:22px;
+  filter:drop-shadow(0 0 10px currentColor);
+}
+
+/* Signal identities */
+.signal-vwap   .signal-title{ color:#38bdf8; }
+.signal-volume .signal-title{ color:#22c55e; }
+.signal-sector .signal-title{ color:#a78bfa; }
+
+/* =========================================================
+   SECTOR HEADER
+   ========================================================= */
+.sector-name{
+  display:inline-block;
+  padding:6px 16px;
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:1px;
+  text-transform:uppercase;
+  border-radius:999px;
+  color:#e0f2fe;
+  background:
+    linear-gradient(#020617,#020617) padding-box,
+    linear-gradient(90deg,#38bdf8,#22c55e,#a78bfa) border-box;
+  border:1.5px solid transparent;
+  margin-bottom:8px;
+}
+
+/* =========================================================
+   STOCK LINKS
+   ========================================================= */
+.stock-link{
+  cursor:pointer;
+  color:var(--cyan);
+}
+.stock-link:hover{ text-decoration:underline; }
+
+/* =========================================================
+   KPI BLOCKS
+   ========================================================= */
+.kpis{
+  display:grid;
+  grid-template-columns:repeat(4,1fr);
+  gap:12px;
+  margin-top:10px;
+}
+
+.kpi{
+  background:#020617;
+  border:1px solid #1e293b;
+  border-radius:14px;
+  padding:10px 12px;
+}
+
+.kpi label{
+  font-size:11px;
+  color:var(--muted);
+  letter-spacing:1px;
+  text-transform:uppercase;
+  font-weight:700;
+}
+
+.kpi span{
+  display:block;
+  margin-top:2px;
+  font-size:14px;
+  font-weight:900;
+}
+
+/* =========================================================
+   KPI COLOR GUARANTEES (SECTOR CARDS)
+   ========================================================= */
+
+/* LIVE */
+.kpi.live span,
+.purple{
+  color: var(--purple) !important;
+  font-weight: 900;
+}
+
+/* POSITIVE */
+.green{
+  color: var(--green) !important;
+  font-weight: 900;
+}
+
+/* NEGATIVE */
+.red{
+  color: var(--red) !important;
+  font-weight: 900;
+}
+
+/* ZERO / NEUTRAL */
+.gray{
+  color: var(--muted) !important;
+}
+
+
+/* =========================================================
+   VWAP & FSS — STRICT COLOR RULES (PRODUCTION GUARANTEE)
+   ========================================================= */
+
+/* VWAP */
+.kpi.vwap span.green{ color:var(--green) !important; }
+.kpi.vwap span.red  { color:var(--red)   !important; }
+.kpi.vwap span.gray { color:var(--muted) !important; }
+
+/* FSS */
+.kpi.fss span.fss-pos  { color:var(--green) !important; }
+.kpi.fss span.fss-neg  { color:var(--red)   !important; }
+.kpi.fss span.fss-zero { color:var(--muted) !important; }
+
+/* =========================================================
+   TABLES
+   ========================================================= */
+.table-scroll{
+  max-height:300px;
+  overflow-y:auto;
+  margin-top:12px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  font-size:13px;
+}
+
+thead th{
+  color:var(--muted);
+  font-weight:600;
+  text-align:right;
+  padding:6px;
+  border-bottom:1px solid var(--border);
+}
+
+thead th:first-child,
+tbody td:first-child{ text-align:left; }
+
+tbody td{
+  padding:6px;
+  border-bottom:1px solid #1e293b55;
+  text-align:right;
+}
+
+/* Signal table tweaks */
+.signal-card thead th{
+  color:rgba(255,255,255,.6);
+  border-bottom:1px solid rgba(255,255,255,.15);
+}
+.signal-card tbody tr:hover{
+  background:rgba(255,255,255,.08);
+}
+
+/* =========================================================
+   GENERIC HELPERS
+   ========================================================= */
+.green{ color:var(--green); font-weight:800; }
+.red  { color:var(--red);   font-weight:800; }
+.gray { color:var(--muted); }
+
+</style>
+</head>
+
+<body>
+
+<div id="loader">
+    <div class="loader-box">
+        <h2>Starting Scanner</h2>
+        <div class="progress-track">
+            <div class="progress-bar" id="progressBar"></div>
+        </div>
+        <div class="loader-meta">
+            <span id="progressPct">0%</span> ·
+            <span id="progressMsg">Initializing…</span>
+        </div>
+    </div>
+</div>
+
+<div class="header">
+    <h1>🛰️ Sector Flow Scanner</h1>
+    <div class="meta" id="meta">--</div>
+</div>
+
+<div class="grid" id="vwapLeaders"></div>
+<div class="grid" id="grid"></div>
+
+            <script>
+    /* =========================================================
+       STATE
+       ========================================================= */
+    let currentMode = "EOD";
+    let totalTicks = 0;
+    let tps = 0;
+
+
+    /* =========================================================
+       DOM REFERENCES
+       ========================================================= */
+    const loader = document.getElementById("loader");
+    const progressBar = document.getElementById("progressBar");
+    const progressPct = document.getElementById("progressPct");
+    const progressMsg = document.getElementById("progressMsg");
+    const meta = document.getElementById("meta");
+    const vwapLeaders = document.getElementById("vwapLeaders");
+    const grid = document.getElementById("grid");
+
+
+    /* =========================================================
+       UTILITIES / HELPERS
+       ========================================================= */
+    function formatINR(n){
+      n = Number(n || 0);
+      if(n >= 1e7) return (n / 1e7).toFixed(1) + " Cr";
+      if(n >= 1e5) return (n / 1e5).toFixed(1) + " L";
+      return n.toLocaleString("en-IN");
+    }
+
+    function openChart(symbol){
+      const tvSymbol = `NSE:${encodeURIComponent(symbol)}`;
+      window.open(
+        `https://www.tradingview.com/chart/?symbol=${tvSymbol}`,
+        "_blank"
+      );
+    }
+
+
+    /* =========================================================
+       LOADER / STATUS
+       ========================================================= */
+    async function pollStatus(){
+      try{
+        const r = await fetch("/status", { cache:"no-store" });
+        const j = await r.json();
+
+        progressBar.style.width = j.progress + "%";
+        progressPct.innerText = j.progress + "%";
+        progressMsg.innerText = j.message;
+
+        if(j.progress >= 100){
+          loader.style.display = "none";
+          clearInterval(loaderTimer);
+        }
+      }catch(e){}
+    }
+
+    const loaderTimer = setInterval(pollStatus, 600);
+    pollStatus();
+
+
+    /* =========================================================
+       METRICS (TICKS / TPS)
+       ========================================================= */
+    async function pollMetrics(){
+      try{
+        const r = await fetch("/metrics", { cache:"no-store" });
+        const j = await r.json();
+
+        totalTicks = j.total_ticks || 0;
+        tps = j.ticks_per_sec || 0;
+      }catch(e){}
+    }
+
+    setInterval(pollMetrics, 1000);
+    pollMetrics();
+
+
+    /* =========================================================
+       MARKET TIME / HEADER
+       ========================================================= */
+    function marketCountdown(){
+      const istNow = new Date(
+        new Date().toLocaleString("en-US", { timeZone:"Asia/Kolkata" })
+      );
+
+      const open = new Date(istNow);
+      open.setHours(9,15,0,0);
+      if(istNow > open) open.setDate(open.getDate() + 1);
+
+      const diff = Math.floor((open - istNow) / 1000);
+      if(diff <= 0) return "";
+
+      const h = String(Math.floor(diff / 3600)).padStart(2,"0");
+      const m = String(Math.floor((diff % 3600) / 60)).padStart(2,"0");
+      const s = String(diff % 60).padStart(2,"0");
+
+      return `⏳ Market opens in <b>${h}:${m}:${s}</b>`;
+    }
+
+    function updateHeader(){
+      const t = new Date().toLocaleTimeString("en-IN", { hour12:false });
+      let extra = "";
+
+      if(currentMode === "LIVE"){
+        extra =
+          ` | 📊 <b>${totalTicks.toLocaleString("en-IN")}</b> ticks` +
+          ` | ⚡ <b>${tps}</b> TPS`;
+      }else{
+        const cd = marketCountdown();
+        if(cd) extra = " | " + cd;
+      }
+
+      meta.innerHTML =
+        `🕒 <b>${t}</b> | <b>${currentMode}</b> MODE${extra}`;
+    }
+
+    setInterval(updateHeader, 1000);
+
+
+    /* =========================================================
+       TOP CARDS – VWAP / STOCK VOLUME / SECTOR VOLUME
+       ========================================================= */
+    function renderVWAPLeaders(data){
+      const stockMap = new Map();
+
+Object.values(data).forEach(sec => {
+  sec.stocks.forEach(s => {
+    if (!stockMap.has(s.symbol)) {
+      stockMap.set(s.symbol, s);
+    }
+  });
+});
+
+const allStocks = Array.from(stockMap.values());
+
+
+      const topVWAP = [...allStocks].sort((a,b)=>b.vwap_dev-a.vwap_dev).slice(0,10);
+      const bottomVWAP = [...allStocks].sort((a,b)=>a.vwap_dev-b.vwap_dev).slice(0,10);
+
+      const vwapCard = `
+  <div class="card signal-card signal-vwap">
+    <div class="signal-title">
+      <span>📊</span> TOP / BOTTOM 10 VWAP
+    </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            ${renderStockTable("🔼 TOP 10", topVWAP, "vwap")}
+            ${renderStockTable("🔽 BOTTOM 10", bottomVWAP, "vwap")}
+          </div>
+        </div>
+      `;
+
+      vwapLeaders.innerHTML =
+        vwapCard +
+        renderVolumeLeaders(data) +
+        renderSectorVolumeLeaders(data);
+    }
+
+    function renderVolumeLeaders(data){
+     const stockMap = new Map();
+
+Object.values(data).forEach(sec => {
+  sec.stocks.forEach(s => {
+    if (!stockMap.has(s.symbol)) {
+      stockMap.set(s.symbol, s);
+    }
+  });
+});
+
+const allStocks = Array.from(stockMap.values());
+
+
+      const topVol = [...allStocks].sort((a,b)=>b.live_vol-a.live_vol).slice(0,10);
+      const bottomVol = [...allStocks].sort((a,b)=>a.live_vol-b.live_vol).slice(0,10);
+
+      return `
+  <div class="card signal-card signal-volume">
+    <div class="signal-title">
+      <span>🔊</span> TOP / BOTTOM 10 LIVE VOLUME
+    </div>
+
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            ${renderStockTable("🔼 TOP 10", topVol, "vol")}
+            ${renderStockTable("🔽 BOTTOM 10", bottomVol, "vol")}
+          </div>
+        </div>
+      `;
+    }
+
+    function renderSectorVolumeLeaders(data){
+      const sectors = Object.entries(data)
+        .map(([name,o]) => ({ name, live:o.sector_live }))
+        .sort((a,b)=>b.live-a.live)
+        .slice(0,10);
+
+        return `
+  <div class="card signal-card signal-sector">
+    <div class="signal-title">
+      <span>🧭</span> TOP LIVE VOLUME SECTORS
+    </div>
+
+          <table>
+            <thead><tr><th>Sector</th><th>Live Vol</th></tr></thead>
+            <tbody>
+              ${sectors.map(s=>`
+                <tr>
+                  <td>${s.name}</td>
+                  <td class="green">${formatINR(s.live)}</td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderStockTable(title, list, type){
+      return `
+        <div>
+          <div style="font-weight:700;margin-bottom:6px">
+            ${title}
+          </div>
+          <table>
+            <thead>
+              <tr>
+                <th>Stock</th>
+                <th>${type === "vwap" ? "VWAP" : "Live Vol"}</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${list.map(s=>`
+                <tr>
+                  <td>
+                    <span class="stock-link" data-symbol="${s.symbol}">
+                      ${s.symbol}
+                    </span>
+                  </td>
+                  <td class="${type === "vwap"
+                    ? (s.vwap_dev > 0 ? "vwap-pos" : "vwap-neg")
+                    : (s.live_vol > 0 ? "green" : "gray")
+                  }">
+                    ${type === "vwap"
+                      ? `${s.vwap_dev}%`
+                      : formatINR(s.live_vol)
+                    }
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
+    }
+
+
+    /* =========================================================
+       SECTOR GRID
+       ========================================================= */
+    function renderGrid(data){
+      grid.innerHTML = "";
+
+      Object.entries(data)
+        .sort((a,b)=>b[1].fss-a[1].fss)
+        .forEach(([sector,o])=>{
+          const rows = o.stocks
+            .sort((a,b)=>b.vwap_dev-a.vwap_dev)
+            .map(st=>`
+              <tr>
+                <td>
+                  <span class="stock-link" data-symbol="${st.symbol}">
+                    ${st.symbol}
+                  </span>
+                </td>
+                <td>${formatINR(st.avg_20d_vol)}</td>
+                <td>${formatINR(st.live_vol)}</td>
+                <td class="${st.vwap_dev>0?'green':st.vwap_dev<0?'red':'gray'}">
+                  ${st.vwap_dev}%
+                </td>
+              </tr>
+            `).join("");
+
+          grid.innerHTML += `
+            <div class="card">
+              <div class="sector-name">${sector}</div>
+              <div class="kpis">
+               <div class="kpi live">
+  <label>LIVE</label>
+  <span class="purple">${formatINR(o.sector_live)}</span>
+</div>
+
+<div class="kpi avg">
+  <label>20D</label>
+  <span>${formatINR(o.sector_avg)}</span>
+</div>
+
+<div class="kpi vwap">
+  <label>VWAP</label>
+  <span class="${
+    o.sector_vwap > 0 ? 'green' :
+    o.sector_vwap < 0 ? 'red' : 'gray'
+  }">
+    ${o.sector_vwap}%
+  </span>
+</div>
+
+<div class="kpi fss">
+  <label>FSS</label>
+  <span class="${
+    o.fss > 0 ? 'green' :
+    o.fss < 0 ? 'red' : 'gray'
+  }">
+    ${o.fss}
+  </span>
+</div>
+
+              </div>
+              <div class="table-scroll">
+                <table>
+                  <thead>
+                    <tr><th>Stock</th><th>20D</th><th>Live</th><th>VWAP</th></tr>
+                  </thead>
+                  <tbody>${rows}</tbody>
+                </table>
+              </div>
+            </div>
+          `;
+        });
+    }
+
+
+    /* =========================================================
+       REFRESH LOOP (MINUTE-ALIGNED)
+       ========================================================= */
+    async function refresh(){
+      try{
+        const r = await fetch("/live", { cache:"no-store" });
+        const j = await r.json();
+        currentMode = j.mode;
+
+        renderVWAPLeaders(j.data);
+        renderGrid(j.data);
+      }catch(e){}
+    }
+
+    function startMinuteAlignedRefresh(){
+      refresh();
+      const now = new Date();
+      const delay =
+        (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+
+      setTimeout(()=>{
+        refresh();
+        setInterval(refresh, 60000);
+      }, delay);
+    }
+
+    startMinuteAlignedRefresh();
+
+
+    /* =========================================================
+       GLOBAL EVENTS
+       ========================================================= */
+    document.addEventListener("click", e => {
+      const el = e.target.closest(".stock-link");
+      if(!el) return;
+      openChart(el.dataset.symbol);
+    });
+</script>
+
+
+
+</body>
+</html>
