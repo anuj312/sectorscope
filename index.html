@@ -408,6 +408,7 @@ tbody tr:hover{
 /* Live (column 3) */
 .card tbody td:nth-child(3){
   font-weight: 900;
+  color: #9b5cff;
 }
 
 /* VWAP (column 4) */
@@ -415,6 +416,23 @@ tbody tr:hover{
   font-weight: 900;
 }
 
+.cards-container {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    column-gap: 16px;
+    row-gap: 16px;
+}
+
+#grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  column-gap: 20px;
+  row-gap: 20px;
+}
+
+#grid > .card:nth-child(n + 4) {
+  margin-top: 28px;
+}
 
 
 
@@ -435,6 +453,9 @@ tbody tr:hover{
         </div>
     </div>
 </div>
+
+
+
 
 <div class="header">
     <h1>🛰️ Sector Flow Scanner</h1>
