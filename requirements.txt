@@ -2,3 +2,7 @@ fastapi
 uvicorn
 pandas
 kiteconnect
+
+
+export KITE_API_KEY="ikfiyrgi5w2dttxb"
+export KITE_ACCESS_TOKEN="6LYA7e4vf8xZ57Wh03ucicSlAjvN3TFx"
