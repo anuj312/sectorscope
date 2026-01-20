@@ -221,6 +221,48 @@ def on_close(ws, code, reason):
         ws_dead.set()
 
 
+def reset_intraday_state():
+    global df_1m, tick_buffer, tick_count, ticks_per_sec, last_tick_count, ticker, LIVE_STARTED
+
+    print("🧹 DAILY RESET @ 09:00 — clearing intraday state")
+
+    try:
+        if ticker:
+            ticker.close()
+            print("🔌 WebSocket closed for clean session")
+    except:
+        pass
+
+    with live_lock:
+        LIVE_STARTED = False
+
+    with df_lock:
+        df_1m = {s: pd.DataFrame(columns=[
+            "ts","vol","cum_vol","cum_turnover","vwap","last_price","vwap_dev"
+        ]) for s in ALL_SYMBOLS}
+        tick_buffer = {s: [] for s in ALL_SYMBOLS}
+
+    with metrics_lock:
+        tick_count = 0
+        ticks_per_sec = 0
+        last_tick_count = 0
+
+
+
+def eod_reset_watcher():
+    last_reset_date = None
+
+    while True:
+        now = datetime.now(IST)
+
+        if now.time() >= datetime.strptime("9:00", "%H:%M").time():
+            if last_reset_date != now.date():
+                reset_intraday_state()
+                last_reset_date = now.date()
+
+        time.sleep(5)
+
+
 def internet_up():
     try:
         socket.create_connection(("8.8.8.8", 53), timeout=2)
@@ -411,6 +453,10 @@ def index():
 
 @app.on_event("startup")
 def startup_event():
+    now = datetime.now(IST)
+    if now.time() >= datetime.strptime("09:00", "%H:%M").time():
+        reset_intraday_state()
+
     if not market_open():
         load_eod_intraday()
 
@@ -419,6 +465,9 @@ def startup_event():
     threading.Thread(target=market_watcher, daemon=True).start()
     threading.Thread(target=ws_watchdog, daemon=True).start()
     threading.Thread(target=ws_reviver, daemon=True).start()
+    threading.Thread(target=eod_reset_watcher, daemon=True).start()
+
+
 
 
 
