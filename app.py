@@ -237,10 +237,12 @@ def reset_intraday_state():
         LIVE_STARTED = False
 
     with df_lock:
-        df_1m = {s: pd.DataFrame(columns=[
-            "ts","vol","cum_vol","cum_turnover","vwap","last_price","vwap_dev"
-        ]) for s in ALL_SYMBOLS}
-        tick_buffer = {s: [] for s in ALL_SYMBOLS}
+        for s in df_1m:
+            df_1m[s].drop(df_1m[s].index, inplace=True)
+        for s in tick_buffer:
+            tick_buffer[s].clear()
+
+
 
     with metrics_lock:
         tick_count = 0
@@ -415,29 +417,51 @@ def metrics():
 
 @app.get("/live")
 def live():
+    now = datetime.now(IST)
+
+    # 🟡 PRE-OPEN PROTECTION
+    if now.time() < datetime.strptime("09:00", "%H:%M").time():
+        return {
+            "mode": "PREOPEN",
+            "started_at": SCRIPT_START.strftime("%H:%M:%S"),
+            "data": {}
+        }
+
     data = {}
     with df_lock:
         for sector, syms in SECTOR_DEFINITIONS.items():
             sl = sa = vw = ab = 0
             rows = []
+
             for s in syms:
                 d = df_1m[s]
+
                 lv = int(d.iloc[-1]["cum_vol"]) if not d.empty else 0
-                av = STOCK_20D_AVG.get(s,1)
+                av = STOCK_20D_AVG.get(s, 1)
                 vd = float(d.iloc[-1]["vwap_dev"]) if not d.empty else 0
-                sl += lv; sa += av; vw += vd * lv; ab += vd > 0
-                rows.append({"symbol":s,"live_vol":lv,"avg_20d_vol":av,"vwap_dev":round(vd,2)})
+
+                sl += lv
+                sa += av
+                vw += vd * lv
+                ab += vd > 0
+
+                rows.append({
+                    "symbol": s,
+                    "live_vol": lv,
+                    "avg_20d_vol": av,
+                    "vwap_dev": round(vd, 2)
+                })
 
             sv = vw / sl if sl else 0
             vr = sl / sa if sa else 0
-            br = ab / max(len(syms),1)
-            fss = round(0.5*sv + 0.3*vr + 0.2*br, 2)
+            br = ab / max(len(syms), 1)
+            fss = round(0.5 * sv + 0.3 * vr + 0.2 * br, 2)
 
             data[sector] = {
                 "stocks": rows,
                 "sector_live": sl,
                 "sector_avg": sa,
-                "sector_vwap": round(sv,2),
+                "sector_vwap": round(sv, 2),
                 "fss": fss
             }
 
@@ -446,6 +470,7 @@ def live():
         "started_at": SCRIPT_START.strftime("%H:%M:%S"),
         "data": data
     }
+
 
 @app.get("/")
 def index():
@@ -457,8 +482,10 @@ def startup_event():
     if now.time() >= datetime.strptime("09:00", "%H:%M").time():
         reset_intraday_state()
 
-    if not market_open():
+    # Load EOD data ONLY after market closes
+    if now.time() > datetime.strptime("15:30", "%H:%M").time():
         load_eod_intraday()
+
 
     threading.Thread(target=tick_rate, daemon=True).start()
     threading.Thread(target=aggregate_1min, daemon=True).start()
@@ -466,6 +493,9 @@ def startup_event():
     threading.Thread(target=ws_watchdog, daemon=True).start()
     threading.Thread(target=ws_reviver, daemon=True).start()
     threading.Thread(target=eod_reset_watcher, daemon=True).start()
+    if now.time() < datetime.strptime("09:00", "%H:%M").time():
+        print("⏳ PREOPEN — keeping intraday state empty")
+
 
 
 
