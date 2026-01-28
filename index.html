@@ -6,435 +6,506 @@
 
 <style>
     /* =========================================================
-   DESIGN TOKENS / THEME
-   ========================================================= */
-:root{
-  --bg:#020617;
-  --panel:#0b1220;
-  --panel2:#0f172a;
-  --border:#1e293b;
-  --text:#e5e7eb;
-  --muted:#94a3b8;
+       INSTITUTIONAL TERMINAL THEME (ENHANCED)
+       Drop-in replacement for your current CSS
+       ========================================================= */
 
-  --green:#22c55e;
-  --red:#ef4444;
-  --cyan:#38bdf8;
-  --purple:#a78bfa;
-  --orange:#fb923c;
-}
+    /* -----------------------------
+       DESIGN TOKENS
+    ------------------------------ */
+    :root{
+      --bg0:#020617;          /* base */
+      --bg1:#060b1a;          /* deep panel shadow */
+      --surface:#0b1220;      /* card */
+      --surface2:#0f172a;     /* elevated / inner */
+      --border:rgba(148,163,184,.18);
+      --border2:rgba(226,232,240,.08);
 
-/* =========================================================
-   BASE RESET
-   ========================================================= */
-*{ box-sizing:border-box; }
+      --text:#e5e7eb;
+      --muted:#94a3b8;
 
-body{
-  margin:0;
-  padding:22px;
-  background:radial-gradient(1200px 600px at 20% -10%, #0b1220, #020617);
-  color:var(--text);
-  font-family:Inter,system-ui;
-}
+      --green:#22c55e;
+      --red:#ef4444;
+      --cyan:#38bdf8;
+      --purple:#a78bfa;
+      --orange:#fb923c;
 
-/* =========================================================
-   LOADER
-   ========================================================= */
-#loader{
-  position:fixed;
-  inset:0;
-  background:#020617;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  z-index:9999;
-}
+      --shadow: 0 18px 60px rgba(0,0,0,.55);
+      --shadow2: 0 30px 90px rgba(0,0,0,.75);
+      --ring: 0 0 0 3px rgba(56,189,248,.18);
 
-.loader-box{ width:360px; text-align:center; }
+      --r-card:18px;
+      --r-card-lg:22px;
 
-.loader-box h2{
-  margin:0 0 12px;
-  color:var(--cyan);
-  font-size:20px;
-}
+      --font: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+    }
 
-.progress-track{
-  height:10px;
-  background:#1e293b;
-  border-radius:8px;
-  overflow:hidden;
-}
+    /* -----------------------------
+       BASE RESET
+    ------------------------------ */
+    *{ box-sizing:border-box; }
+    html,body{ height:100%; }
 
-.progress-bar{
-  height:100%;
-  width:0%;
-  background:linear-gradient(90deg,#22c55e,#38bdf8,#a78bfa);
-  transition:width .3s ease;
-}
+    body{
+      margin:0;
+      padding:22px;
+      color:var(--text);
+      font-family:var(--font);
+      letter-spacing:.15px;
 
-.loader-meta{
-  margin-top:10px;
-  font-size:13px;
-  color:var(--muted);
-}
+      /* premium layered background */
+      background:
+        radial-gradient(900px 520px at 12% -12%, rgba(56,189,248,.18), transparent 60%),
+        radial-gradient(800px 460px at 92% 10%, rgba(167,139,250,.14), transparent 60%),
+        radial-gradient(900px 540px at 50% 115%, rgba(34,197,94,.10), transparent 55%),
+        linear-gradient(180deg, #020617 0%, #020617 55%, #01040f 100%);
+      position:relative;
+      overflow-x:hidden;
+    }
 
-/* =========================================================
-   HEADER
-   ========================================================= */
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  margin-bottom:14px;
-}
+    /* subtle “film grain” without images */
+    body::before{
+      content:"";
+      position:fixed;
+      inset:0;
+      pointer-events:none;
+      opacity:.08;
+      mix-blend-mode:overlay;
+      background:
+        repeating-linear-gradient(
+          0deg,
+          rgba(255,255,255,.05) 0px,
+          rgba(255,255,255,.05) 1px,
+          rgba(0,0,0,0) 2px,
+          rgba(0,0,0,0) 4px
+        );
+    }
 
-h1{ margin:0; font-size:22px; }
-.meta{ font-size:13px; color:var(--muted); }
+    /* nicer selection */
+    ::selection{
+      background: rgba(56,189,248,.25);
+      color: var(--text);
+    }
 
-/* =========================================================
-   GRID LAYOUTS
-   ========================================================= */
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
-  gap:18px;
-}
+    /* -----------------------------
+       LOADER
+    ------------------------------ */
+    #loader{
+      position:fixed;
+      inset:0;
+      z-index:9999;
+      display:flex;
+      align-items:center;
+      justify-content:center;
 
-/* =========================================================
-   PREMIUM INSTITUTIONAL THEME
-   ========================================================= */
+      background:
+        radial-gradient(900px 520px at 20% 10%, rgba(56,189,248,.12), transparent 60%),
+        radial-gradient(900px 520px at 80% 20%, rgba(167,139,250,.10), transparent 60%),
+        rgba(2,6,23,.92);
+      backdrop-filter: blur(10px);
+    }
 
-:root{
-  --bg:#020617;
-  --panel:#0b1220;
-  --panel-soft:#0f172a;
-  --border:#1e293b;
+    .loader-box{
+      width:min(420px, 92vw);
+      padding:18px 18px 16px;
+      border-radius:18px;
+      border:1px solid var(--border2);
+      background: linear-gradient(180deg, rgba(15,23,42,.82), rgba(2,6,23,.78));
+      box-shadow: var(--shadow2);
+      text-align:center;
+    }
 
-  --text:#e5e7eb;
-  --muted:#94a3b8;
+    .loader-box h2{
+      margin:0 0 12px;
+      font-size:18px;
+      font-weight:900;
+      letter-spacing:.6px;
+      color:var(--cyan);
+    }
 
-  --green:#22c55e;
-  --red:#ef4444;
-  --cyan:#38bdf8;
-  --purple:#a78bfa;
-}
+    .progress-track{
+      height:10px;
+      border-radius:999px;
+      overflow:hidden;
+      background: rgba(148,163,184,.14);
+      border:1px solid rgba(226,232,240,.08);
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+    }
 
-/* =========================================================
-   BASE RESET
-   ========================================================= */
-*{ box-sizing:border-box; }
+    .progress-bar{
+      height:100%;
+      width:0%;
+      border-radius:999px;
+      background: linear-gradient(90deg, rgba(34,197,94,.95), rgba(56,189,248,.95), rgba(167,139,250,.95));
+      transition: width .35s ease;
+      position:relative;
+    }
 
-body{
-  margin:0;
-  padding:22px;
-  background:
-    radial-gradient(1000px 500px at 15% -10%, #0b1220, #020617 65%);
-  color:var(--text);
-  font-family: Inter, system-ui, -apple-system, BlinkMacSystemFont;
-  letter-spacing:.15px;
-}
+    /* animated sheen */
+    .progress-bar::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      transform: translateX(-40%);
+      background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+      animation: sheen 1.6s linear infinite;
+      opacity:.65;
+    }
+    @keyframes sheen{
+      0%{ transform: translateX(-60%); }
+      100%{ transform: translateX(60%); }
+    }
 
-/* =========================================================
-   HEADER
-   ========================================================= */
-.header{
-  display:flex;
-  justify-content:space-between;
-  align-items:flex-end;
-  margin-bottom:18px;
-}
+    .loader-meta{
+      margin-top:10px;
+      font-size:12.5px;
+      color:var(--muted);
+    }
 
-h1{
-  margin:0;
-  font-size:22px;
-  font-weight:800;
-  letter-spacing:.4px;
-}
+    /* -----------------------------
+       HEADER
+    ------------------------------ */
+    .header{
+      display:flex;
+      justify-content:space-between;
+      align-items:flex-end;
+      gap:16px;
+      margin-bottom:18px;
 
-.meta{
-  font-size:12.5px;
-  color:var(--muted);
-}
+      padding:14px 14px 12px;
+      border-radius:16px;
+      border:1px solid var(--border2);
+      background: linear-gradient(180deg, rgba(15,23,42,.55), rgba(2,6,23,.35));
+      box-shadow: 0 14px 40px rgba(0,0,0,.35);
+    }
 
-/* =========================================================
-   GRID
-   ========================================================= */
-.grid{
-  display:grid;
-  grid-template-columns:repeat(auto-fit,minmax(420px,1fr));
-  gap:20px;
-}
+    h1{
+      margin:0;
+      font-size:20px;
+      font-weight:950;
+      letter-spacing:.4px;
+    }
 
-#vwapLeaders{
-  grid-template-columns:repeat(auto-fit,minmax(380px,1fr));
-}
+    .meta{
+      font-size:12.5px;
+      color:var(--muted);
+      white-space:nowrap;
+    }
 
-/* =========================================================
-   STANDARD CARDS (SECTORS)
-   ========================================================= */
-.card{
-  background:
-    linear-gradient(180deg,#0b1220,#070c1a);
-  border:1px solid var(--border);
-  border-radius:18px;
-  padding:16px;
-  box-shadow:
-    0 18px 40px rgba(0,0,0,.55),
-    inset 0 1px 0 rgba(255,255,255,.04);
-  transition:transform .25s ease, box-shadow .25s ease;
-}
+    /* -----------------------------
+       GRID LAYOUTS
+    ------------------------------ */
+    .grid{
+      display:grid;
+      gap:20px;
+      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+    }
 
-.card:hover{
-  transform:translateY(-3px);
-  box-shadow:
-    0 25px 60px rgba(0,0,0,.7);
-}
+    #vwapLeaders{
+      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+      margin-bottom:20px;
+    }
 
-/* =========================================================
-   SIGNAL CARDS (TERMINAL GRADE)
-   ========================================================= */
-.signal-card{
-  position:relative;
-  border-radius:20px;
-  padding:18px;
+    /* keep your 3-column preference on wide screens */
+    #grid{
+      display:grid;
+      grid-template-columns: repeat(3, 1fr);
+      column-gap:20px;
+      row-gap:20px;
+    }
 
-  background:
-    linear-gradient(180deg,#060b18,#020617);
+    @media (max-width: 1320px){
+      #grid{ grid-template-columns: repeat(2, 1fr); }
+    }
+    @media (max-width: 860px){
+      #grid{ grid-template-columns: 1fr; }
+      body{ padding:14px; }
+      .header{ flex-direction:column; align-items:flex-start; }
+    }
 
-  border:1px solid rgba(255,255,255,.08);
+    /* -----------------------------
+       CARD BASE
+    ------------------------------ */
+    .card{
+      border-radius: var(--r-card);
+      border:1px solid var(--border2);
+      background:
+        radial-gradient(900px 300px at 10% 0%, rgba(56,189,248,.08), transparent 60%),
+        linear-gradient(180deg, rgba(15,23,42,.82), rgba(2,6,23,.82));
+      box-shadow: var(--shadow);
+      padding:16px;
+      transform: translateZ(0);
+      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+    }
 
-  box-shadow:
-    0 35px 90px rgba(0,0,0,.85),
-    inset 0 1px 1px rgba(255,255,255,.05);
+    .card:hover{
+      transform: translateY(-3px);
+      box-shadow: var(--shadow2);
+      border-color: rgba(226,232,240,.14);
+    }
 
-  overflow:hidden;
-}
+    /* -----------------------------
+       SIGNAL CARDS (VWAP / VOLUME / SECTOR)
+       Uses an accent variable per card for consistent glow.
+    ------------------------------ */
+    .signal-card{
+      position:relative;
+      border-radius: var(--r-card-lg);
+      padding:18px;
+      overflow:hidden;
+      border:1px solid rgba(226,232,240,.10);
+      background:
+        radial-gradient(900px 340px at 20% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+        linear-gradient(180deg, rgba(6,11,24,.95), rgba(2,6,23,.92));
+      box-shadow: var(--shadow2);
+    }
 
-/* subtle signal glow (not flashy) */
-.signal-card::before{
-  content:"";
-  position:absolute;
-  inset:-1px;
-  border-radius:20px;
-  background:linear-gradient(120deg,transparent,currentColor,transparent);
-  opacity:.18;
-  filter:blur(16px);
-  z-index:-1;
-}
+    /* accent wiring */
+    .signal-vwap{   --accent: var(--cyan);   color: var(--cyan); }
+    .signal-volume{ --accent: var(--green);  color: var(--green); }
+    .signal-sector{ --accent: var(--purple); color: var(--purple); }
 
-/* =========================================================
-   SIGNAL TITLES
-   ========================================================= */
-.signal-title{
-  display:flex;
-  align-items:center;
-  gap:10px;
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:2.5px;
-  text-transform:uppercase;
-  padding-bottom:10px;
-  margin-bottom:12px;
-  border-bottom:1px solid rgba(255,255,255,.12);
-}
+    /* border glow ring */
+    .signal-card::before{
+      content:"";
+      position:absolute;
+      inset:-2px;
+      border-radius: inherit;
+      background: linear-gradient(120deg,
+        transparent 10%,
+        color-mix(in srgb, var(--accent) 65%, transparent) 50%,
+        transparent 90%
+      );
+      filter: blur(18px);
+      opacity:.20;
+      pointer-events:none;
+    }
 
-/* Signal identity */
-.signal-vwap   { color:var(--cyan); }
-.signal-volume { color:var(--green); }
-.signal-sector { color:var(--purple); }
+    /* crisp inner border */
+    .signal-card::after{
+      content:"";
+      position:absolute;
+      inset:0;
+      border-radius: inherit;
+      border:1px solid rgba(255,255,255,.06);
+      pointer-events:none;
+    }
 
-/* =========================================================
-   TABLES (TERMINAL STYLE)
-   ========================================================= */
-table{
-  width:100%;
-  border-collapse:collapse;
-  font-size:12.5px;
-}
+    /* -----------------------------
+       SIGNAL TITLES
+    ------------------------------ */
+    .signal-title{
+      display:flex;
+      align-items:center;
+      gap:10px;
+      margin:0 0 12px;
+      padding-bottom:10px;
+      border-bottom:1px solid rgba(226,232,240,.12);
 
-thead th{
-  font-size:11px;
-  color:var(--muted);
-  font-weight:700;
-  letter-spacing:1px;
-  text-transform:uppercase;
-  text-align:right;
-  padding:8px 6px;
-  border-bottom:1px solid var(--border);
-}
+      font-size:11px;
+      font-weight:900;
+      letter-spacing:2.6px;
+      text-transform:uppercase;
+      color: color-mix(in srgb, var(--accent) 85%, white);
+    }
 
-thead th:first-child,
-tbody td:first-child{ text-align:left; }
+    /* -----------------------------
+       SECTOR BADGE
+    ------------------------------ */
+    .sector-name{
+      display:inline-flex;
+      align-items:center;
+      gap:10px;
+      margin-bottom:10px;
+      padding:6px 14px;
+      border-radius:999px;
 
-tbody td{
-  padding:7px 6px;
-  border-bottom:1px solid rgba(255,255,255,.06);
-  text-align:right;
-}
+      font-size:12px;
+      font-weight:950;
+      letter-spacing:1.4px;
+      text-transform:uppercase;
 
-tbody tr:hover{
-  background:rgba(255,255,255,.04);
-}
+      color:#e0f2fe;
 
-/* =========================================================
-   SCROLL CONTAINERS
-   ========================================================= */
-.signal-scroll,
-.table-scroll{
-  max-height:280px;
-  overflow-y:auto;
-  border-radius:12px;
-}
+      background:
+        linear-gradient(rgba(2,6,23,.85), rgba(2,6,23,.85)) padding-box,
+        linear-gradient(90deg, rgba(56,189,248,.9), rgba(34,197,94,.85), rgba(167,139,250,.85)) border-box;
+      border:1.5px solid transparent;
+    }
 
-/* professional scrollbar */
-.signal-scroll::-webkit-scrollbar,
-.table-scroll::-webkit-scrollbar{
-  width:5px;
-}
+    /* -----------------------------
+       KPI BLOCKS
+    ------------------------------ */
+    .kpis{
+      display:grid;
+      grid-template-columns:repeat(4, 1fr);
+      gap:10px;
+      margin-top:10px;
+    }
 
-.signal-scroll::-webkit-scrollbar-thumb,
-.table-scroll::-webkit-scrollbar-thumb{
-  background:#334155;
-  border-radius:6px;
-}
+    .kpi{
+      border-radius:14px;
+      padding:10px 12px;
+      border:1px solid rgba(226,232,240,.08);
+      background:
+        linear-gradient(180deg, rgba(15,23,42,.72), rgba(2,6,23,.72));
+      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+    }
 
-/* =========================================================
-   SECTOR HEADER BADGE
-   ========================================================= */
-.sector-name{
-  display:inline-block;
-  margin-bottom:8px;
-  padding:6px 14px;
-  font-size:12px;
-  font-weight:800;
-  letter-spacing:1.4px;
-  text-transform:uppercase;
-  border-radius:999px;
-  color:#e0f2fe;
-  background:
-    linear-gradient(#020617,#020617) padding-box,
-    linear-gradient(90deg,#38bdf8,#22c55e,#a78bfa) border-box;
-  border:1.5px solid transparent;
-}
+    .kpi label{
+      display:block;
+      font-size:10px;
+      letter-spacing:1px;
+      text-transform:uppercase;
+      color:var(--muted);
+      font-weight:800;
+    }
 
-/* =========================================================
-   KPI BLOCKS
-   ========================================================= */
-.kpis{
-  display:grid;
-  grid-template-columns:repeat(4,1fr);
-  gap:10px;
-  margin-top:10px;
-}
+    .kpi span{
+      display:block;
+      margin-top:4px;
+      font-size:14px;
+      font-weight:950;
+      letter-spacing:.2px;
+    }
 
-.kpi{
-  background:#020617;
-  border:1px solid #1e293b;
-  border-radius:12px;
-  padding:10px 12px;
-}
+    /* -----------------------------
+       TABLES (TERMINAL STYLE)
+    ------------------------------ */
+    table{
+      width:100%;
+      border-collapse:separate;
+      border-spacing:0;
+      font-size:12.5px;
+    }
 
-.kpi label{
-  font-size:10px;
-  color:var(--muted);
-  letter-spacing:1px;
-  text-transform:uppercase;
-  font-weight:700;
-}
+    thead th{
+      position:sticky;
+      top:0;
+      z-index:2;
 
-.kpi span{
-  display:block;
-  margin-top:2px;
-  font-size:14px;
-  font-weight:900;
-}
+      padding:9px 8px;
+      text-align:right;
 
-/* KPI COLORS */
-.green{ color:var(--green); }
-.red{ color:var(--red); }
-.gray{ color:var(--muted); }
-.purple{ color:var(--purple); }
+      font-size:10.8px;
+      font-weight:900;
+      letter-spacing:1.2px;
+      text-transform:uppercase;
+      color: color-mix(in srgb, var(--muted) 88%, white);
 
-/* =========================================================
-   STOCK LINKS
-   ========================================================= */
-/* =========================================================
-   STOCK LINKS — WHITE, PROFESSIONAL
-   ========================================================= */
-.stock-link{
-  cursor:pointer;
-  color: #e5e7eb;            /* pure terminal white */
-  font-weight: 700;
-  transition: color .15s ease, opacity .15s ease;
-}
+      background: linear-gradient(180deg, rgba(15,23,42,.92), rgba(2,6,23,.88));
+      border-bottom:1px solid rgba(226,232,240,.10);
+      backdrop-filter: blur(6px);
+    }
 
-.stock-link:hover{
-  color: var(--cyan);        /* subtle signal on intent */
-  opacity: 0.95;
-  text-decoration: none;    /* cleaner than underline */
-}
+    thead th:first-child,
+    tbody td:first-child{ text-align:left; }
 
-    /* =========================================================
-   VWAP VALUE COLORS — GUARANTEED
-   ========================================================= */
-.vwap-pos{
-  color: #22c55e !important; /* GREEN */
-  font-weight: 900;
-}
+    tbody td{
+      padding:8px 8px;
+      text-align:right;
+      border-bottom:1px solid rgba(226,232,240,.06);
+      color: color-mix(in srgb, var(--text) 92%, var(--muted));
+    }
 
-.vwap-neg{
-  color: #ef4444 !important; /* RED */
-  font-weight: 900;
-}
+    /* zebra + hover */
+    tbody tr:nth-child(odd){
+      background: rgba(255,255,255,.015);
+    }
+    tbody tr:hover{
+      background: rgba(56,189,248,.06);
+    }
 
+    /* -----------------------------
+       SCROLL CONTAINERS
+    ------------------------------ */
+    .signal-scroll,
+    .table-scroll{
+      max-height:280px;
+      overflow:auto;
+      border-radius:14px;
+      border:1px solid rgba(226,232,240,.06);
+      background: rgba(2,6,23,.22);
+    }
 
-    /* =========================================================
-   TOP LIVE VOLUME SECTORS — BOLD SECTOR NAMES
-   ========================================================= */
-.signal-sector tbody td:first-child{
-  font-weight: 900;
-  color:color: var(--purple);
-  letter-spacing: 0.2px;
-}
+    /* professional scrollbar */
+    .signal-scroll::-webkit-scrollbar,
+    .table-scroll::-webkit-scrollbar{
+      width:6px;
+      height:6px;
+    }
+    .signal-scroll::-webkit-scrollbar-thumb,
+    .table-scroll::-webkit-scrollbar-thumb{
+      background: rgba(148,163,184,.28);
+      border-radius:999px;
+    }
+    .signal-scroll::-webkit-scrollbar-thumb:hover,
+    .table-scroll::-webkit-scrollbar-thumb:hover{
+      background: rgba(148,163,184,.40);
+    }
+    .signal-scroll::-webkit-scrollbar-track,
+    .table-scroll::-webkit-scrollbar-track{
+      background: rgba(2,6,23,.25);
+      border-radius:999px;
+    }
 
-    /* =========================================================
-   SECTOR TABLE — BOLD KEY METRIC VALUES
-   ========================================================= */
+    /* -----------------------------
+       STOCK LINKS
+    ------------------------------ */
+    .stock-link{
+      cursor:pointer;
+      color: var(--text);
+      font-weight:850;
+      letter-spacing:.2px;
+      text-decoration: none;
+      position:relative;
+      outline:none;
+    }
 
-/* 20D (column 2) */
-.card tbody td:nth-child(2){
-  font-weight: 800;
-}
+    .stock-link:hover{
+      color: color-mix(in srgb, var(--cyan) 85%, white);
+    }
 
-/* Live (column 3) */
-.card tbody td:nth-child(3){
-  font-weight: 900;
-  color: #9b5cff;
-}
+    .stock-link:focus-visible{
+      box-shadow: var(--ring);
+      border-radius:8px;
+    }
 
-/* VWAP (column 4) */
-.card tbody td:nth-child(4){
-  font-weight: 900;
-}
+    /* -----------------------------
+       COLOR HELPERS
+    ------------------------------ */
+    .green{ color:var(--green) !important; }
+    .red{ color:var(--red) !important; }
+    .gray{ color:var(--muted) !important; }
+    .purple{ color:var(--purple) !important; }
 
-.cards-container {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    column-gap: 16px;
-    row-gap: 16px;
-}
+    .vwap-pos{
+      color: var(--green) !important;
+      font-weight:950;
+    }
+    .vwap-neg{
+      color: var(--red) !important;
+      font-weight:950;
+    }
 
-#grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  column-gap: 20px;
-  row-gap: 20px;
-}
+    /* Top Live Volume Sectors — bold sector names (fixes your earlier typo) */
+    .signal-sector tbody td:first-child{
+      font-weight:950;
+      color: color-mix(in srgb, var(--purple) 85%, white);
+    }
 
-#grid > .card:nth-child(n + 4) {
-  margin-top: 28px;
-}
+    /* Sector table emphasis */
+    .card tbody td:nth-child(2){ font-weight:850; } /* 20D */
+    .card tbody td:nth-child(3){ font-weight:950; color: #9b5cff; } /* Live */
+    .card tbody td:nth-child(4){ font-weight:950; } /* VWAP */
 
-
+    /* -----------------------------
+       REDUCED MOTION
+    ------------------------------ */
+    @media (prefers-reduced-motion: reduce){
+      .card, .progress-bar{ transition:none; }
+      .progress-bar::after{ animation:none; }
+    }
 
 </style>
 </head>
