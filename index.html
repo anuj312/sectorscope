@@ -1,517 +1,494 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <title>Sector Flow Scanner</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width,initial-scale=1"/>
+    <title>🛰️ Sector Flow Scanner</title>
 
-<style>
-    /* =========================================================
-       INSTITUTIONAL TERMINAL THEME (ENHANCED)
-       Drop-in replacement for your current CSS
-       ========================================================= */
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@500;600;700;800;900&display=swap" rel="stylesheet">
 
-    /* -----------------------------
-       DESIGN TOKENS
-    ------------------------------ */
-    :root{
-      --bg0:#020617;          /* base */
-      --bg1:#060b1a;          /* deep panel shadow */
-      --surface:#0b1220;      /* card */
-      --surface2:#0f172a;     /* elevated / inner */
-      --border:rgba(148,163,184,.18);
-      --border2:rgba(226,232,240,.08);
+    <style>
+        /* =========================================================
+           INSTITUTIONAL TERMINAL THEME (ENHANCED)
+           ========================================================= */
+        :root{
+          --bg0:#020617;
+          --bg1:#060b1a;
+          --surface:#0b1220;
+          --surface2:#0f172a;
+          --border:rgba(148,163,184,.18);
+          --border2:rgba(226,232,240,.08);
 
-      --text:#e5e7eb;
-      --muted:#94a3b8;
+          --text:#e5e7eb;
+          --muted:#94a3b8;
 
-      --green:#22c55e;
-      --red:#ef4444;
-      --cyan:#38bdf8;
-      --purple:#a78bfa;
-      --orange:#fb923c;
+          --green:#22c55e;
+          --red:#ef4444;
+          --cyan:#38bdf8;
+          --purple:#a78bfa;
+          --orange:#fb923c;
 
-      --shadow: 0 18px 60px rgba(0,0,0,.55);
-      --shadow2: 0 30px 90px rgba(0,0,0,.75);
-      --ring: 0 0 0 3px rgba(56,189,248,.18);
+          --shadow: 0 18px 60px rgba(0,0,0,.55);
+          --shadow2: 0 30px 90px rgba(0,0,0,.75);
+          --ring: 0 0 0 3px rgba(56,189,248,.18);
 
-      --r-card:18px;
-      --r-card-lg:22px;
+          --r-card:18px;
+          --r-card-lg:22px;
 
-      --font: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
-    }
+          --font: Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+        }
 
-    /* -----------------------------
-       BASE RESET
-    ------------------------------ */
-    *{ box-sizing:border-box; }
-    html,body{ height:100%; }
+        *{ box-sizing:border-box; }
+        html,body{ height:100%; }
 
-    body{
-      margin:0;
-      padding:22px;
-      color:var(--text);
-      font-family:var(--font);
-      letter-spacing:.15px;
+        body{
+          margin:0;
+          padding:22px;
+          color:var(--text);
+          font-family:var(--font);
+          letter-spacing:.15px;
+          overflow-x:hidden;
 
-      /* premium layered background */
-      background:
-        radial-gradient(900px 520px at 12% -12%, rgba(56,189,248,.18), transparent 60%),
-        radial-gradient(800px 460px at 92% 10%, rgba(167,139,250,.14), transparent 60%),
-        radial-gradient(900px 540px at 50% 115%, rgba(34,197,94,.10), transparent 55%),
-        linear-gradient(180deg, #020617 0%, #020617 55%, #01040f 100%);
-      position:relative;
-      overflow-x:hidden;
-    }
+          background:
+            radial-gradient(900px 520px at 12% -12%, rgba(56,189,248,.18), transparent 60%),
+            radial-gradient(800px 460px at 92% 10%, rgba(167,139,250,.14), transparent 60%),
+            radial-gradient(900px 540px at 50% 115%, rgba(34,197,94,.10), transparent 55%),
+            linear-gradient(180deg, #020617 0%, #020617 55%, #01040f 100%);
+        }
 
-    /* subtle “film grain” without images */
-    body::before{
-      content:"";
-      position:fixed;
-      inset:0;
-      pointer-events:none;
-      opacity:.08;
-      mix-blend-mode:overlay;
-      background:
-        repeating-linear-gradient(
-          0deg,
-          rgba(255,255,255,.05) 0px,
-          rgba(255,255,255,.05) 1px,
-          rgba(0,0,0,0) 2px,
-          rgba(0,0,0,0) 4px
-        );
-    }
+        body::before{
+          content:"";
+          position:fixed;
+          inset:0;
+          pointer-events:none;
+          opacity:.08;
+          mix-blend-mode:overlay;
+          background:
+            repeating-linear-gradient(
+              0deg,
+              rgba(255,255,255,.05) 0px,
+              rgba(255,255,255,.05) 1px,
+              rgba(0,0,0,0) 2px,
+              rgba(0,0,0,0) 4px
+            );
+        }
 
-    /* nicer selection */
-    ::selection{
-      background: rgba(56,189,248,.25);
-      color: var(--text);
-    }
+        ::selection{
+          background: rgba(56,189,248,.25);
+          color: var(--text);
+        }
 
-    /* -----------------------------
-       LOADER
-    ------------------------------ */
-    #loader{
-      position:fixed;
-      inset:0;
-      z-index:9999;
-      display:flex;
-      align-items:center;
-      justify-content:center;
+        /* =========================================================
+           LOADER
+           ========================================================= */
+        #loader{
+          position:fixed;
+          inset:0;
+          z-index:9999;
+          display:flex;
+          align-items:center;
+          justify-content:center;
 
-      background:
-        radial-gradient(900px 520px at 20% 10%, rgba(56,189,248,.12), transparent 60%),
-        radial-gradient(900px 520px at 80% 20%, rgba(167,139,250,.10), transparent 60%),
-        rgba(2,6,23,.92);
-      backdrop-filter: blur(10px);
-    }
+          background:
+            radial-gradient(900px 520px at 20% 10%, rgba(56,189,248,.12), transparent 60%),
+            radial-gradient(900px 520px at 80% 20%, rgba(167,139,250,.10), transparent 60%),
+            rgba(2,6,23,.92);
+          backdrop-filter: blur(10px);
+        }
 
-    .loader-box{
-      width:min(420px, 92vw);
-      padding:18px 18px 16px;
-      border-radius:18px;
-      border:1px solid var(--border2);
-      background: linear-gradient(180deg, rgba(15,23,42,.82), rgba(2,6,23,.78));
-      box-shadow: var(--shadow2);
-      text-align:center;
-    }
+        .loader-box{
+          width:min(440px, 92vw);
+          padding:18px 18px 16px;
+          border-radius:18px;
+          border:1px solid var(--border2);
+          background: linear-gradient(180deg, rgba(15,23,42,.82), rgba(2,6,23,.78));
+          box-shadow: var(--shadow2);
+          text-align:center;
+        }
 
-    .loader-box h2{
-      margin:0 0 12px;
-      font-size:18px;
-      font-weight:900;
-      letter-spacing:.6px;
-      color:var(--cyan);
-    }
+        .loader-box h2{
+          margin:0 0 12px;
+          font-size:18px;
+          font-weight:950;
+          letter-spacing:.6px;
+          color:var(--cyan);
+        }
 
-    .progress-track{
-      height:10px;
-      border-radius:999px;
-      overflow:hidden;
-      background: rgba(148,163,184,.14);
-      border:1px solid rgba(226,232,240,.08);
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
-    }
+        .progress-track{
+          height:10px;
+          border-radius:999px;
+          overflow:hidden;
+          background: rgba(148,163,184,.14);
+          border:1px solid rgba(226,232,240,.08);
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.06);
+        }
 
-    .progress-bar{
-      height:100%;
-      width:0%;
-      border-radius:999px;
-      background: linear-gradient(90deg, rgba(34,197,94,.95), rgba(56,189,248,.95), rgba(167,139,250,.95));
-      transition: width .35s ease;
-      position:relative;
-    }
+        .progress-bar{
+          height:100%;
+          width:0%;
+          border-radius:999px;
+          background: linear-gradient(90deg, rgba(34,197,94,.95), rgba(56,189,248,.95), rgba(167,139,250,.95));
+          transition: width .35s ease;
+          position:relative;
+        }
 
-    /* animated sheen */
-    .progress-bar::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      transform: translateX(-40%);
-      background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
-      animation: sheen 1.6s linear infinite;
-      opacity:.65;
-    }
-    @keyframes sheen{
-      0%{ transform: translateX(-60%); }
-      100%{ transform: translateX(60%); }
-    }
+        .progress-bar::after{
+          content:"";
+          position:absolute;
+          inset:0;
+          transform: translateX(-40%);
+          background: linear-gradient(90deg, transparent, rgba(255,255,255,.28), transparent);
+          animation: sheen 1.6s linear infinite;
+          opacity:.65;
+        }
 
-    .loader-meta{
-      margin-top:10px;
-      font-size:12.5px;
-      color:var(--muted);
-    }
+        @keyframes sheen{
+          0%{ transform: translateX(-60%); }
+          100%{ transform: translateX(60%); }
+        }
 
-    /* -----------------------------
-       HEADER
-    ------------------------------ */
-    .header{
-      display:flex;
-      justify-content:space-between;
-      align-items:flex-end;
-      gap:16px;
-      margin-bottom:18px;
+        .loader-meta{
+          margin-top:10px;
+          font-size:12.5px;
+          color:var(--muted);
+        }
 
-      padding:14px 14px 12px;
-      border-radius:16px;
-      border:1px solid var(--border2);
-      background: linear-gradient(180deg, rgba(15,23,42,.55), rgba(2,6,23,.35));
-      box-shadow: 0 14px 40px rgba(0,0,0,.35);
-    }
+        /* =========================================================
+           HEADER
+           ========================================================= */
+        .header{
+          display:flex;
+          justify-content:space-between;
+          align-items:flex-end;
+          gap:16px;
+          margin-bottom:18px;
 
-    h1{
-      margin:0;
-      font-size:20px;
-      font-weight:950;
-      letter-spacing:.4px;
-    }
+          padding:14px 14px 12px;
+          border-radius:16px;
+          border:1px solid var(--border2);
+          background: linear-gradient(180deg, rgba(15,23,42,.55), rgba(2,6,23,.35));
+          box-shadow: 0 14px 40px rgba(0,0,0,.35);
+        }
 
-    .meta{
-      font-size:12.5px;
-      color:var(--muted);
-      white-space:nowrap;
-    }
+        h1{
+          margin:0;
+          font-size:20px;
+          font-weight:950;
+          letter-spacing:.4px;
+        }
 
-    /* -----------------------------
-       GRID LAYOUTS
-    ------------------------------ */
-    .grid{
-      display:grid;
-      gap:20px;
-      grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-    }
+        .meta{
+          font-size:12.5px;
+          color:var(--muted);
+          white-space:nowrap;
+        }
 
-    #vwapLeaders{
-      grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
-      margin-bottom:20px;
-    }
+        /* =========================================================
+           GRIDS
+           ========================================================= */
+        .grid{
+          display:grid;
+          gap:20px;
+          grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+        }
 
-    /* keep your 3-column preference on wide screens */
-    #grid{
-      display:grid;
-      grid-template-columns: repeat(3, 1fr);
-      column-gap:20px;
-      row-gap:20px;
-    }
+        #leaders{
+          grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+          margin-bottom:20px;
+        }
 
-    @media (max-width: 1320px){
-      #grid{ grid-template-columns: repeat(2, 1fr); }
-    }
-    @media (max-width: 860px){
-      #grid{ grid-template-columns: 1fr; }
-      body{ padding:14px; }
-      .header{ flex-direction:column; align-items:flex-start; }
-    }
+        #grid{
+          display:grid;
+          grid-template-columns: repeat(3, 1fr);
+          column-gap:20px;
+          row-gap:20px;
+        }
 
-    /* -----------------------------
-       CARD BASE
-    ------------------------------ */
-    .card{
-      border-radius: var(--r-card);
-      border:1px solid var(--border2);
-      background:
-        radial-gradient(900px 300px at 10% 0%, rgba(56,189,248,.08), transparent 60%),
-        linear-gradient(180deg, rgba(15,23,42,.82), rgba(2,6,23,.82));
-      box-shadow: var(--shadow);
-      padding:16px;
-      transform: translateZ(0);
-      transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
-    }
+        @media (max-width: 1320px){
+          #grid{ grid-template-columns: repeat(2, 1fr); }
+        }
+        @media (max-width: 860px){
+          #grid{ grid-template-columns: 1fr; }
+          body{ padding:14px; }
+          .header{ flex-direction:column; align-items:flex-start; }
+        }
 
-    .card:hover{
-      transform: translateY(-3px);
-      box-shadow: var(--shadow2);
-      border-color: rgba(226,232,240,.14);
-    }
+        /* =========================================================
+           CARDS
+           ========================================================= */
+        .card{
+          border-radius: var(--r-card);
+          border:1px solid var(--border2);
+          background:
+            radial-gradient(900px 300px at 10% 0%, rgba(56,189,248,.08), transparent 60%),
+            linear-gradient(180deg, rgba(15,23,42,.82), rgba(2,6,23,.82));
+          box-shadow: var(--shadow);
+          padding:16px;
+          transform: translateZ(0);
+          transition: transform .18s ease, box-shadow .18s ease, border-color .18s ease;
+        }
 
-    /* -----------------------------
-       SIGNAL CARDS (VWAP / VOLUME / SECTOR)
-       Uses an accent variable per card for consistent glow.
-    ------------------------------ */
-    .signal-card{
-      position:relative;
-      border-radius: var(--r-card-lg);
-      padding:18px;
-      overflow:hidden;
-      border:1px solid rgba(226,232,240,.10);
-      background:
-        radial-gradient(900px 340px at 20% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
-        linear-gradient(180deg, rgba(6,11,24,.95), rgba(2,6,23,.92));
-      box-shadow: var(--shadow2);
-    }
+        .card:hover{
+          transform: translateY(-3px);
+          box-shadow: var(--shadow2);
+          border-color: rgba(226,232,240,.14);
+        }
 
-    /* accent wiring */
-    .signal-vwap{   --accent: var(--cyan);   color: var(--cyan); }
-    .signal-volume{ --accent: var(--green);  color: var(--green); }
-    .signal-sector{ --accent: var(--purple); color: var(--purple); }
+        .signal-card{
+          position:relative;
+          border-radius: var(--r-card-lg);
+          padding:18px;
+          overflow:hidden;
+          border:1px solid rgba(226,232,240,.10);
+          background:
+            radial-gradient(900px 340px at 20% 0%, color-mix(in srgb, var(--accent) 18%, transparent), transparent 60%),
+            linear-gradient(180deg, rgba(6,11,24,.95), rgba(2,6,23,.92));
+          box-shadow: var(--shadow2);
+        }
 
-    /* border glow ring */
-    .signal-card::before{
-      content:"";
-      position:absolute;
-      inset:-2px;
-      border-radius: inherit;
-      background: linear-gradient(120deg,
-        transparent 10%,
-        color-mix(in srgb, var(--accent) 65%, transparent) 50%,
-        transparent 90%
-      );
-      filter: blur(18px);
-      opacity:.20;
-      pointer-events:none;
-    }
+        .signal-vwap{   --accent: var(--cyan);   color: var(--cyan); }
+        .signal-volume{ --accent: var(--green);  color: var(--green); }
+        .signal-sector{ --accent: var(--purple); color: var(--purple); }
+        .signal-momo{   --accent: var(--orange); color: var(--orange); }
 
-    /* crisp inner border */
-    .signal-card::after{
-      content:"";
-      position:absolute;
-      inset:0;
-      border-radius: inherit;
-      border:1px solid rgba(255,255,255,.06);
-      pointer-events:none;
-    }
+        .signal-card::before{
+          content:"";
+          position:absolute;
+          inset:-2px;
+          border-radius: inherit;
+          background: linear-gradient(120deg,
+            transparent 10%,
+            color-mix(in srgb, var(--accent) 65%, transparent) 50%,
+            transparent 90%
+          );
+          filter: blur(18px);
+          opacity:.20;
+          pointer-events:none;
+        }
 
-    /* -----------------------------
-       SIGNAL TITLES
-    ------------------------------ */
-    .signal-title{
-      display:flex;
-      align-items:center;
-      gap:10px;
-      margin:0 0 12px;
-      padding-bottom:10px;
-      border-bottom:1px solid rgba(226,232,240,.12);
+        .signal-card::after{
+          content:"";
+          position:absolute;
+          inset:0;
+          border-radius: inherit;
+          border:1px solid rgba(255,255,255,.06);
+          pointer-events:none;
+        }
 
-      font-size:11px;
-      font-weight:900;
-      letter-spacing:2.6px;
-      text-transform:uppercase;
-      color: color-mix(in srgb, var(--accent) 85%, white);
-    }
+        .signal-title{
+          display:flex;
+          align-items:center;
+          gap:10px;
+          margin:0 0 12px;
+          padding-bottom:10px;
+          border-bottom:1px solid rgba(226,232,240,.12);
 
-    /* -----------------------------
-       SECTOR BADGE
-    ------------------------------ */
-    .sector-name{
-      display:inline-flex;
-      align-items:center;
-      gap:10px;
-      margin-bottom:10px;
-      padding:6px 14px;
-      border-radius:999px;
+          font-size:11px;
+          font-weight:900;
+          letter-spacing:2.6px;
+          text-transform:uppercase;
+          color: color-mix(in srgb, var(--accent) 85%, white);
+        }
 
-      font-size:12px;
-      font-weight:950;
-      letter-spacing:1.4px;
-      text-transform:uppercase;
+        /* =========================================================
+           SECTOR BADGE
+           ========================================================= */
+        .sector-name{
+          display:inline-flex;
+          align-items:center;
+          gap:10px;
+          margin-bottom:10px;
+          padding:6px 14px;
+          border-radius:999px;
 
-      color:#e0f2fe;
+          font-size:12px;
+          font-weight:950;
+          letter-spacing:1.4px;
+          text-transform:uppercase;
 
-      background:
-        linear-gradient(rgba(2,6,23,.85), rgba(2,6,23,.85)) padding-box,
-        linear-gradient(90deg, rgba(56,189,248,.9), rgba(34,197,94,.85), rgba(167,139,250,.85)) border-box;
-      border:1.5px solid transparent;
-    }
+          color:#e0f2fe;
 
-    /* -----------------------------
-       KPI BLOCKS
-    ------------------------------ */
-    .kpis{
-      display:grid;
-      grid-template-columns:repeat(4, 1fr);
-      gap:10px;
-      margin-top:10px;
-    }
+          background:
+            linear-gradient(rgba(2,6,23,.85), rgba(2,6,23,.85)) padding-box,
+            linear-gradient(90deg, rgba(56,189,248,.9), rgba(34,197,94,.85), rgba(167,139,250,.85)) border-box;
+          border:1.5px solid transparent;
+        }
 
-    .kpi{
-      border-radius:14px;
-      padding:10px 12px;
-      border:1px solid rgba(226,232,240,.08);
-      background:
-        linear-gradient(180deg, rgba(15,23,42,.72), rgba(2,6,23,.72));
-      box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
-    }
+        /* =========================================================
+           KPI
+           ========================================================= */
+        .kpis{
+          display:grid;
+          grid-template-columns:repeat(5, 1fr);
+          gap:10px;
+          margin-top:10px;
+          margin-bottom:12px;
+        }
 
-    .kpi label{
-      display:block;
-      font-size:10px;
-      letter-spacing:1px;
-      text-transform:uppercase;
-      color:var(--muted);
-      font-weight:800;
-    }
+        .kpi{
+          border-radius:14px;
+          padding:10px 12px;
+          border:1px solid rgba(226,232,240,.08);
+          background: linear-gradient(180deg, rgba(15,23,42,.72), rgba(2,6,23,.72));
+          box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+        }
 
-    .kpi span{
-      display:block;
-      margin-top:4px;
-      font-size:14px;
-      font-weight:950;
-      letter-spacing:.2px;
-    }
+        .kpi label{
+          display:block;
+          font-size:10px;
+          letter-spacing:1px;
+          text-transform:uppercase;
+          color:var(--muted);
+          font-weight:800;
+        }
 
-    /* -----------------------------
-       TABLES (TERMINAL STYLE)
-    ------------------------------ */
-    table{
-      width:100%;
-      border-collapse:separate;
-      border-spacing:0;
-      font-size:12.5px;
-    }
+        .kpi span{
+          display:block;
+          margin-top:4px;
+          font-size:14px;
+          font-weight:950;
+          letter-spacing:.2px;
+        }
 
-    thead th{
-      position:sticky;
-      top:0;
-      z-index:2;
+        /* =========================================================
+           TABLES
+           ========================================================= */
+        table{
+          width:100%;
+          border-collapse:separate;
+          border-spacing:0;
+          font-size:12.5px;
+        }
 
-      padding:9px 8px;
-      text-align:right;
+        thead th{
+          position:sticky;
+          top:0;
+          z-index:2;
 
-      font-size:10.8px;
-      font-weight:900;
-      letter-spacing:1.2px;
-      text-transform:uppercase;
-      color: color-mix(in srgb, var(--muted) 88%, white);
+          padding:9px 8px;
+          text-align:right;
 
-      background: linear-gradient(180deg, rgba(15,23,42,.92), rgba(2,6,23,.88));
-      border-bottom:1px solid rgba(226,232,240,.10);
-      backdrop-filter: blur(6px);
-    }
+          font-size:10.8px;
+          font-weight:900;
+          letter-spacing:1.2px;
+          text-transform:uppercase;
+          color: color-mix(in srgb, var(--muted) 88%, white);
 
-    thead th:first-child,
-    tbody td:first-child{ text-align:left; }
+          background: linear-gradient(180deg, rgba(15,23,42,.92), rgba(2,6,23,.88));
+          border-bottom:1px solid rgba(226,232,240,.10);
+          backdrop-filter: blur(6px);
+        }
 
-    tbody td{
-      padding:8px 8px;
-      text-align:right;
-      border-bottom:1px solid rgba(226,232,240,.06);
-      color: color-mix(in srgb, var(--text) 92%, var(--muted));
-    }
+        thead th:first-child,
+        tbody td:first-child{ text-align:left; }
 
-    /* zebra + hover */
-    tbody tr:nth-child(odd){
-      background: rgba(255,255,255,.015);
-    }
-    tbody tr:hover{
-      background: rgba(56,189,248,.06);
-    }
+        tbody td{
+          padding:8px 8px;
+          text-align:right;
+          border-bottom:1px solid rgba(226,232,240,.06);
+          color: color-mix(in srgb, var(--text) 92%, var(--muted));
+          white-space:nowrap;
+        }
 
-    /* -----------------------------
-       SCROLL CONTAINERS
-    ------------------------------ */
-    .signal-scroll,
-    .table-scroll{
-      max-height:280px;
-      overflow:auto;
-      border-radius:14px;
-      border:1px solid rgba(226,232,240,.06);
-      background: rgba(2,6,23,.22);
-    }
+        tbody tr:nth-child(odd){
+          background: rgba(255,255,255,.015);
+        }
+        tbody tr:hover{
+          background: rgba(56,189,248,.06);
+        }
 
-    /* professional scrollbar */
-    .signal-scroll::-webkit-scrollbar,
-    .table-scroll::-webkit-scrollbar{
-      width:6px;
-      height:6px;
-    }
-    .signal-scroll::-webkit-scrollbar-thumb,
-    .table-scroll::-webkit-scrollbar-thumb{
-      background: rgba(148,163,184,.28);
-      border-radius:999px;
-    }
-    .signal-scroll::-webkit-scrollbar-thumb:hover,
-    .table-scroll::-webkit-scrollbar-thumb:hover{
-      background: rgba(148,163,184,.40);
-    }
-    .signal-scroll::-webkit-scrollbar-track,
-    .table-scroll::-webkit-scrollbar-track{
-      background: rgba(2,6,23,.25);
-      border-radius:999px;
-    }
+        /* =========================================================
+           SCROLL
+           ========================================================= */
+        .signal-scroll,
+        .table-scroll{
+          max-height:280px;
+          overflow:auto;
+          border-radius:14px;
+          border:1px solid rgba(226,232,240,.06);
+          background: rgba(2,6,23,.22);
+        }
 
-    /* -----------------------------
-       STOCK LINKS
-    ------------------------------ */
-    .stock-link{
-      cursor:pointer;
-      color: var(--text);
-      font-weight:850;
-      letter-spacing:.2px;
-      text-decoration: none;
-      position:relative;
-      outline:none;
-    }
+        .signal-scroll::-webkit-scrollbar,
+        .table-scroll::-webkit-scrollbar{
+          width:6px;
+          height:6px;
+        }
+        .signal-scroll::-webkit-scrollbar-thumb,
+        .table-scroll::-webkit-scrollbar-thumb{
+          background: rgba(148,163,184,.28);
+          border-radius:999px;
+        }
+        .signal-scroll::-webkit-scrollbar-thumb:hover,
+        .table-scroll::-webkit-scrollbar-thumb:hover{
+          background: rgba(148,163,184,.40);
+        }
+        .signal-scroll::-webkit-scrollbar-track,
+        .table-scroll::-webkit-scrollbar-track{
+          background: rgba(2,6,23,.25);
+          border-radius:999px;
+        }
 
-    .stock-link:hover{
-      color: color-mix(in srgb, var(--cyan) 85%, white);
-    }
+        /* =========================================================
+           LINKS + COLORS
+           ========================================================= */
+        .stock-link{
+          cursor:pointer;
+          color: var(--text);
+          font-weight:850;
+          letter-spacing:.2px;
+          text-decoration:none;
+          outline:none;
+        }
+        .stock-link:hover{
+          color: color-mix(in srgb, var(--cyan) 85%, white);
+        }
+        .stock-link:focus-visible{
+          box-shadow: var(--ring);
+          border-radius:8px;
+        }
 
-    .stock-link:focus-visible{
-      box-shadow: var(--ring);
-      border-radius:8px;
-    }
+        .green{ color:var(--green) !important; }
+        .red{ color:var(--red) !important; }
+        .gray{ color:var(--muted) !important; }
+        .purple{ color:var(--purple) !important; }
+        .orange{ color:var(--orange) !important; }
 
-    /* -----------------------------
-       COLOR HELPERS
-    ------------------------------ */
-    .green{ color:var(--green) !important; }
-    .red{ color:var(--red) !important; }
-    .gray{ color:var(--muted) !important; }
-    .purple{ color:var(--purple) !important; }
+        .vwap-pos{ color: var(--green) !important; font-weight:950; }
+        .vwap-neg{ color: var(--red) !important; font-weight:950; }
 
-    .vwap-pos{
-      color: var(--green) !important;
-      font-weight:950;
-    }
-    .vwap-neg{
-      color: var(--red) !important;
-      font-weight:950;
-    }
+        .signal-sector tbody td:first-child{
+          font-weight:950;
+          color: color-mix(in srgb, var(--purple) 85%, white);
+        }
 
-    /* Top Live Volume Sectors — bold sector names (fixes your earlier typo) */
-    .signal-sector tbody td:first-child{
-      font-weight:950;
-      color: color-mix(in srgb, var(--purple) 85%, white);
-    }
+        /* =========================================================
+           SORTING UI
+           ========================================================= */
+        th.sortable{
+          cursor:pointer;
+          user-select:none;
+        }
+        th.sortable:hover{ color: var(--text); }
+        th.sortable .sort-ind{
+          opacity:.8;
+          margin-left:6px;
+          font-size:11px;
+        }
+        th.active-sort{ color: var(--cyan); }
 
-    /* Sector table emphasis */
-    .card tbody td:nth-child(2){ font-weight:850; } /* 20D */
-    .card tbody td:nth-child(3){ font-weight:950; color: #9b5cff; } /* Live */
-    .card tbody td:nth-child(4){ font-weight:950; } /* VWAP */
-
-    /* -----------------------------
-       REDUCED MOTION
-    ------------------------------ */
-    @media (prefers-reduced-motion: reduce){
-      .card, .progress-bar{ transition:none; }
-      .progress-bar::after{ animation:none; }
-    }
-
-</style>
+        @media (prefers-reduced-motion: reduce){
+          .card, .progress-bar{ transition:none; }
+          .progress-bar::after{ animation:none; }
+        }
+    </style>
 </head>
 
 <body>
 
+<!-- LOADER -->
 <div id="loader">
     <div class="loader-box">
         <h2>Starting Scanner</h2>
@@ -519,47 +496,57 @@
             <div class="progress-bar" id="progressBar"></div>
         </div>
         <div class="loader-meta">
-            <span id="progressPct">0%</span> ·
-            <span id="progressMsg">Initializing…</span>
+            <span id="progressPct">0%</span> · <span id="progressMsg">Initializing…</span>
         </div>
     </div>
 </div>
 
-
-
-
+<!-- HEADER -->
 <div class="header">
     <h1>🛰️ Sector Flow Scanner</h1>
     <div class="meta" id="meta">--</div>
 </div>
 
-<div class="grid" id="vwapLeaders"></div>
+<!-- LEADERS -->
+<div class="grid" id="leaders"></div>
+
+<!-- SECTOR GRID -->
 <div class="grid" id="grid"></div>
 
-            <script>
+<script>
     /* =========================================================
        STATE
-       ========================================================= */
+    ========================================================= */
     let currentMode = "EOD";
     let totalTicks = 0;
     let tps = 0;
 
+    let lastData = null;
+
+    let stockSort = {
+      key: "vwap_dev",  // default
+      dir: "desc"
+    };
+
+    function num(x){
+      const n = Number(x);
+      return Number.isFinite(n) ? n : 0;
+    }
 
     /* =========================================================
-       DOM REFERENCES
-       ========================================================= */
+       DOM REFS
+    ========================================================= */
     const loader = document.getElementById("loader");
     const progressBar = document.getElementById("progressBar");
     const progressPct = document.getElementById("progressPct");
     const progressMsg = document.getElementById("progressMsg");
     const meta = document.getElementById("meta");
-    const vwapLeaders = document.getElementById("vwapLeaders");
+    const leaders = document.getElementById("leaders");
     const grid = document.getElementById("grid");
 
-
     /* =========================================================
-       UTILITIES / HELPERS
-       ========================================================= */
+       HELPERS
+    ========================================================= */
     function formatINR(n){
       n = Number(n || 0);
       if(n >= 1e7) return (n / 1e7).toFixed(1) + " Cr";
@@ -569,183 +556,144 @@
 
     function openChart(symbol){
       const tvSymbol = `NSE:${encodeURIComponent(symbol)}`;
-      window.open(
-        `https://www.tradingview.com/chart/?symbol=${tvSymbol}`,
-        "_blank"
-      );
+      window.open(`https://www.tradingview.com/chart/?symbol=${tvSymbol}`, "_blank");
     }
 
+    function sortIndicator(key){
+      if(stockSort.key !== key) return "";
+      return `<span class="sort-ind">${stockSort.dir === "desc" ? "▼" : "▲"}</span>`;
+    }
+
+    function thClass(key){
+      return `sortable ${stockSort.key === key ? "active-sort" : ""}`;
+    }
 
     /* =========================================================
        LOADER / STATUS
-       ========================================================= */
+    ========================================================= */
     async function pollStatus(){
       try{
         const r = await fetch("/status", { cache:"no-store" });
         const j = await r.json();
 
-        progressBar.style.width = j.progress + "%";
-        progressPct.innerText = j.progress + "%";
-        progressMsg.innerText = j.message;
+        progressBar.style.width = (j.progress || 0) + "%";
+        progressPct.innerText = (j.progress || 0) + "%";
+        progressMsg.innerText = j.message || "…";
 
-        if(j.progress >= 100){
+        if((j.progress || 0) >= 100){
           loader.style.display = "none";
           clearInterval(loaderTimer);
         }
       }catch(e){}
     }
-
     const loaderTimer = setInterval(pollStatus, 600);
     pollStatus();
 
-
     /* =========================================================
-       METRICS (TICKS / TPS)
-       ========================================================= */
+       METRICS
+    ========================================================= */
     async function pollMetrics(){
       try{
         const r = await fetch("/metrics", { cache:"no-store" });
         const j = await r.json();
-
         totalTicks = j.total_ticks || 0;
         tps = j.ticks_per_sec || 0;
       }catch(e){}
     }
-
     setInterval(pollMetrics, 1000);
     pollMetrics();
 
-
     /* =========================================================
-       MARKET TIME / HEADER
-       ========================================================= */
-    function marketCountdown(){
-      const istNow = new Date(
-        new Date().toLocaleString("en-US", { timeZone:"Asia/Kolkata" })
-      );
-
-      const open = new Date(istNow);
-      open.setHours(9,15,0,0);
-      if(istNow > open) open.setDate(open.getDate() + 1);
-
-      const diff = Math.floor((open - istNow) / 1000);
-      if(diff <= 0) return "";
-
-      const h = String(Math.floor(diff / 3600)).padStart(2,"0");
-      const m = String(Math.floor((diff % 3600) / 60)).padStart(2,"0");
-      const s = String(diff % 60).padStart(2,"0");
-
-      return `⏳ Market opens in <b>${h}:${m}:${s}</b>`;
-    }
-
+       HEADER META
+    ========================================================= */
     function updateHeader(){
       const t = new Date().toLocaleTimeString("en-IN", { hour12:false });
-      let extra = "";
-
-      if(currentMode === "LIVE"){
-        extra =
-          ` | 📊 <b>${totalTicks.toLocaleString("en-IN")}</b> ticks` +
-          ` | ⚡ <b>${tps}</b> TPS`;
-      }else{
-        const cd = marketCountdown();
-        if(cd) extra = " | " + cd;
-      }
-
-      meta.innerHTML =
-        `🕒 <b>${t}</b> | <b>${currentMode}</b> MODE${extra}`;
+      const extra =
+        (currentMode === "LIVE")
+          ? ` | 📊 <b>${totalTicks.toLocaleString("en-IN")}</b> ticks | ⚡ <b>${tps}</b> TPS`
+          : "";
+      meta.innerHTML = `🕒 <b>${t}</b> | <b>${currentMode}</b> MODE${extra}`;
     }
-
     setInterval(updateHeader, 1000);
-
+    updateHeader();
 
     /* =========================================================
-       TOP CARDS – VWAP / STOCK VOLUME / SECTOR VOLUME
-       ========================================================= */
-    function renderVWAPLeaders(data){
+       DATA NORMALIZATION
+    ========================================================= */
+    function collectAllStocks(data){
       const stockMap = new Map();
-
-Object.values(data).forEach(sec => {
-  sec.stocks.forEach(s => {
-    if (!stockMap.has(s.symbol)) {
-      stockMap.set(s.symbol, s);
-    }
-  });
-});
-
-const allStocks = Array.from(stockMap.values());
-
-
-    const sortedVWAP = [...allStocks].sort((a,b)=>b.vwap_dev-a.vwap_dev);
-
-const topVWAP = sortedVWAP.slice(0,20);
-const bottomVWAP = [...sortedVWAP].reverse().slice(0,20);
-
-
-      const vwapCard = `
-  <div class="card signal-card signal-vwap">
-    <div class="signal-title">
-      <span>📊</span> TOP / BOTTOM 10 VWAP
-    </div>
-
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            ${renderStockTable("🔼 TOP 10", topVWAP, "vwap")}
-            ${renderStockTable("🔽 BOTTOM 10", bottomVWAP, "vwap")}
-          </div>
-        </div>
-      `;
-
-      vwapLeaders.innerHTML =
-        vwapCard +
-        renderVolumeLeaders(data) +
-        renderSectorVolumeLeaders(data);
+      Object.values(data || {}).forEach(sec => {
+        (sec.stocks || []).forEach(s => {
+          if(!stockMap.has(s.symbol)) stockMap.set(s.symbol, s);
+        });
+      });
+      return Array.from(stockMap.values());
     }
 
-    function renderVolumeLeaders(data){
-     const stockMap = new Map();
-
-Object.values(data).forEach(sec => {
-  sec.stocks.forEach(s => {
-    if (!stockMap.has(s.symbol)) {
-      stockMap.set(s.symbol, s);
-    }
-  });
-});
-
-const allStocks = Array.from(stockMap.values());
-
-
-      const sortedVol = [...allStocks].sort((a,b)=>b.live_vol-a.live_vol);
-
-const topVol = sortedVol.slice(0,20);
-const bottomVol = [...sortedVol].reverse().slice(0,20);
-
-
+    /* =========================================================
+       LEADER CARDS
+    ========================================================= */
+    function renderStockTable(title, list, type){
       return `
-  <div class="card signal-card signal-volume">
-    <div class="signal-title">
-      <span>🔊</span> TOP / BOTTOM 10 LIVE VOLUME
-    </div>
+        <div>
+          <div style="font-weight:900;margin-bottom:6px;color:rgba(229,231,235,.92)">
+            ${title}
+          </div>
 
-          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-            ${renderStockTable("🔼 TOP 10", topVol, "vol")}
-            ${renderStockTable("🔽 BOTTOM 10", bottomVol, "vol")}
+          <div class="signal-scroll">
+            <table>
+              <thead>
+                <tr>
+                  <th>Stock</th>
+                  <th>${
+                    type === "vwap" ? "VWAP%" :
+                    type === "vol"  ? "Live Vol" :
+                    "MOMO(5m)"
+                  }</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${list.map(s=>{
+                  const vwap = num(s.vwap_dev);
+                  const vol = num(s.live_vol);
+                  const momo = num(s.vwap_slope_5_pct);
+                  let cellClass = "gray";
+                  let cellVal = "--";
+
+                  if(type === "vwap"){
+                    cellClass = vwap > 0 ? "vwap-pos" : (vwap < 0 ? "vwap-neg" : "gray");
+                    cellVal = `${vwap.toFixed(2)}%`;
+                  }else if(type === "vol"){
+                    cellClass = vol > 0 ? "green" : "gray";
+                    cellVal = formatINR(vol);
+                  }else{
+                    cellClass = momo > 0 ? "green" : (momo < 0 ? "red" : "gray");
+                    cellVal = `${momo.toFixed(3)}%/m`;
+                  }
+
+                  return `
+                    <tr>
+                      <td><span class="stock-link" data-symbol="${s.symbol}">${s.symbol}</span></td>
+                      <td class="${cellClass}">${cellVal}</td>
+                    </tr>
+                  `;
+                }).join("")}
+              </tbody>
+            </table>
           </div>
         </div>
       `;
     }
 
     function renderSectorVolumeLeaders(data){
-      const sectors = Object.entries(data)
-        .map(([name,o]) => ({ name, live:o.sector_live }))
+      const sectors = Object.entries(data || {})
+        .map(([name,o]) => ({ name, live:num(o.sector_live) }))
         .sort((a,b)=>b.live-a.live)
         .slice(0,10);
 
-        return `
-  <div class="card signal-card signal-sector">
-    <div class="signal-title">
-      <span>🧭</span> TOP LIVE VOLUME SECTORS
-    </div>
-
+      return `
+        <div class="card signal-card signal-sector">
+          <div class="signal-title"><span>🧭</span> TOP LIVE VOLUME SECTORS</div>
           <table>
             <thead><tr><th>Sector</th><th>Live Vol</th></tr></thead>
             <tbody>
@@ -761,118 +709,142 @@ const bottomVol = [...sortedVol].reverse().slice(0,20);
       `;
     }
 
-    function renderStockTable(title, list, type){
-  return `
-    <div>
-      <div style="font-weight:700;margin-bottom:6px">
-        ${title}
-      </div>
+    function renderLeaders(data){
+      if(!data || Object.keys(data).length === 0){
+        leaders.innerHTML = `
+          <div class="card signal-card signal-vwap">
+            <div class="signal-title"><span>⏳</span> NO DATA YET</div>
+            <div style="color:rgba(148,163,184,.92);font-weight:700">
+              Waiting for market data. If this is pre-open, data will populate after 09:15.
+            </div>
+          </div>
+        `;
+        return;
+      }
 
-      <!-- 👇 SCROLL START -->
-      <div class="signal-scroll">
-        <table>
-          <thead>
-            <tr>
-              <th>Stock</th>
-              <th>${type === "vwap" ? "VWAP" : "Live Vol"}</th>
-            </tr>
-          </thead>
-          <tbody>
-            ${list.map(s=>`
-              <tr>
-                <td>
-                  <span class="stock-link" data-symbol="${s.symbol}">
-                    ${s.symbol}
-                  </span>
-                </td>
-                <td class="${
-                  type === "vwap"
-                    ? (s.vwap_dev > 0 ? "vwap-pos" : "vwap-neg")
-                    : (s.live_vol > 0 ? "green" : "gray")
-                }">
-                  ${
-                    type === "vwap"
-                      ? `${s.vwap_dev}%`
-                      : formatINR(s.live_vol)
-                  }
-                </td>
-              </tr>
-            `).join("")}
-          </tbody>
-        </table>
-      </div>
-      <!-- 👆 SCROLL END -->
+      const allStocks = collectAllStocks(data);
 
-    </div>
-  `;
-}
+      const byVWAP = [...allStocks].sort((a,b)=>num(b.vwap_dev)-num(a.vwap_dev));
+      const topVWAP = byVWAP.slice(0,10);
+      const botVWAP = [...byVWAP].reverse().slice(0,10);
 
+      const byVol = [...allStocks].sort((a,b)=>num(b.live_vol)-num(a.live_vol));
+      const topVol = byVol.slice(0,10);
+      const botVol = [...byVol].reverse().slice(0,10);
+
+      const byMomo = [...allStocks].sort((a,b)=>num(b.vwap_slope_5_pct)-num(a.vwap_slope_5_pct));
+      const topMomo = byMomo.slice(0,10);
+      const botMomo = [...byMomo].reverse().slice(0,10);
+
+      const vwapCard = `
+        <div class="card signal-card signal-vwap">
+          <div class="signal-title"><span>📊</span> TOP / BOTTOM 10 VWAP</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            ${renderStockTable("🔼 TOP 10", topVWAP, "vwap")}
+            ${renderStockTable("🔽 BOTTOM 10", botVWAP, "vwap")}
+          </div>
+        </div>
+      `;
+
+      const volCard = `
+        <div class="card signal-card signal-volume">
+          <div class="signal-title"><span>🔊</span> TOP / BOTTOM 10 LIVE VOLUME</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            ${renderStockTable("🔼 TOP 10", topVol, "vol")}
+            ${renderStockTable("🔽 BOTTOM 10", botVol, "vol")}
+          </div>
+        </div>
+      `;
+
+      const momoCard = `
+        <div class="card signal-card signal-momo">
+          <div class="signal-title"><span>📈</span> TOP / BOTTOM 10 MOMO (5m)</div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+            ${renderStockTable("🔼 TOP 10", topMomo, "momo")}
+            ${renderStockTable("🔽 BOTTOM 10", botMomo, "momo")}
+          </div>
+        </div>
+      `;
+
+      leaders.innerHTML = vwapCard + volCard + momoCard + renderSectorVolumeLeaders(data);
+    }
 
     /* =========================================================
-       SECTOR GRID
-       ========================================================= */
+       SECTOR GRID (WITH MOMO COLUMN + SORTING)
+    ========================================================= */
     function renderGrid(data){
       grid.innerHTML = "";
 
-      Object.entries(data)
-        .sort((a,b)=>b[1].fss-a[1].fss)
+      Object.entries(data || {})
+        .sort((a,b)=>num(b[1].fss)-num(a[1].fss))
         .forEach(([sector,o])=>{
-          const rows = o.stocks
-            .sort((a,b)=>b.vwap_dev-a.vwap_dev)
-            .map(st=>`
+          const sectorMomo = num(o.sector_vwap_slope_5_pct);
+
+          const stocks = [...(o.stocks || [])].sort((a,b)=>{
+            const k = stockSort.key;
+
+            if(k === "symbol"){
+              const A = (a.symbol || "").toUpperCase();
+              const B = (b.symbol || "").toUpperCase();
+              return stockSort.dir === "desc" ? B.localeCompare(A) : A.localeCompare(B);
+            }
+
+            const A = num(a[k]);
+            const B = num(b[k]);
+            return stockSort.dir === "desc" ? (B - A) : (A - B);
+          });
+
+          const rows = stocks.map(st=>{
+            const momo = num(st.vwap_slope_5_pct);
+            const vwap = num(st.vwap_dev);
+            return `
               <tr>
-                <td>
-                  <span class="stock-link" data-symbol="${st.symbol}">
-                    ${st.symbol}
-                  </span>
-                </td>
+                <td><span class="stock-link" data-symbol="${st.symbol}">${st.symbol}</span></td>
                 <td>${formatINR(st.avg_20d_vol)}</td>
                 <td>${formatINR(st.live_vol)}</td>
-                <td class="${st.vwap_dev>0?'green':st.vwap_dev<0?'red':'gray'}">
-                  ${st.vwap_dev}%
-                </td>
+                <td class="${vwap>0?'green':vwap<0?'red':'gray'}">${vwap.toFixed(2)}%</td>
+                <td class="${momo>0?'green':momo<0?'red':'gray'}">${momo.toFixed(3)}%/m</td>
               </tr>
-            `).join("");
+            `;
+          }).join("");
 
           grid.innerHTML += `
             <div class="card">
               <div class="sector-name">${sector}</div>
+
               <div class="kpis">
-               <div class="kpi live">
-  <label>LIVE</label>
-  <span class="purple">${formatINR(o.sector_live)}</span>
-</div>
-
-<div class="kpi avg">
-  <label>20D</label>
-  <span>${formatINR(o.sector_avg)}</span>
-</div>
-
-<div class="kpi vwap">
-  <label>VWAP</label>
-  <span class="${
-    o.sector_vwap > 0 ? 'green' :
-    o.sector_vwap < 0 ? 'red' : 'gray'
-  }">
-    ${o.sector_vwap}%
-  </span>
-</div>
-
-<div class="kpi fss">
-  <label>FSS</label>
-  <span class="${
-    o.fss > 0 ? 'green' :
-    o.fss < 0 ? 'red' : 'gray'
-  }">
-    ${o.fss}
-  </span>
-</div>
-
+                <div class="kpi">
+                  <label>LIVE</label>
+                  <span class="purple">${formatINR(o.sector_live)}</span>
+                </div>
+                <div class="kpi">
+                  <label>20D</label>
+                  <span>${formatINR(o.sector_avg)}</span>
+                </div>
+                <div class="kpi">
+                  <label>VWAP</label>
+                  <span class="${num(o.sector_vwap)>0?'green':num(o.sector_vwap)<0?'red':'gray'}">${num(o.sector_vwap).toFixed(2)}%</span>
+                </div>
+                <div class="kpi">
+                  <label>MOMO(5m)</label>
+                  <span class="${sectorMomo>0?'green':sectorMomo<0?'red':'gray'}">${sectorMomo.toFixed(3)}%/m</span>
+                </div>
+                <div class="kpi">
+                  <label>FSS</label>
+                  <span class="${num(o.fss)>0?'green':num(o.fss)<0?'red':'gray'}">${num(o.fss).toFixed(2)}</span>
+                </div>
               </div>
+
               <div class="table-scroll">
                 <table>
                   <thead>
-                    <tr><th>Stock</th><th>20D</th><th>Live</th><th>VWAP</th></tr>
+                    <tr>
+                      <th class="${thClass("symbol")}" data-sort="symbol">Stock${sortIndicator("symbol")}</th>
+                      <th class="${thClass("avg_20d_vol")}" data-sort="avg_20d_vol">20D${sortIndicator("avg_20d_vol")}</th>
+                      <th class="${thClass("live_vol")}" data-sort="live_vol">Live${sortIndicator("live_vol")}</th>
+                      <th class="${thClass("vwap_dev")}" data-sort="vwap_dev">VWAP${sortIndicator("vwap_dev")}</th>
+                      <th class="${thClass("vwap_slope_5_pct")}" data-sort="vwap_slope_5_pct">MOMO(5m)${sortIndicator("vwap_slope_5_pct")}</th>
+                    </tr>
                   </thead>
                   <tbody>${rows}</tbody>
                 </table>
@@ -882,47 +854,58 @@ const bottomVol = [...sortedVol].reverse().slice(0,20);
         });
     }
 
-
     /* =========================================================
        REFRESH LOOP (MINUTE-ALIGNED)
-       ========================================================= */
+    ========================================================= */
     async function refresh(){
       try{
         const r = await fetch("/live", { cache:"no-store" });
         const j = await r.json();
-        currentMode = j.mode;
 
-        renderVWAPLeaders(j.data);
-        renderGrid(j.data);
+        currentMode = j.mode || "EOD";
+        lastData = j.data || {};
+
+        renderLeaders(lastData);
+        renderGrid(lastData);
       }catch(e){}
     }
 
     function startMinuteAlignedRefresh(){
       refresh();
       const now = new Date();
-      const delay =
-        (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
+      const delay = (60 - now.getSeconds()) * 1000 - now.getMilliseconds();
 
       setTimeout(()=>{
         refresh();
         setInterval(refresh, 60000);
       }, delay);
     }
-
     startMinuteAlignedRefresh();
-
 
     /* =========================================================
        GLOBAL EVENTS
-       ========================================================= */
+    ========================================================= */
     document.addEventListener("click", e => {
+      // Sorting
+      const th = e.target.closest("th.sortable");
+      if(th){
+        const key = th.dataset.sort;
+        if(stockSort.key === key){
+          stockSort.dir = (stockSort.dir === "desc") ? "asc" : "desc";
+        }else{
+          stockSort.key = key;
+          stockSort.dir = "desc";
+        }
+        if(lastData) renderGrid(lastData);
+        return;
+      }
+
+      // Open chart
       const el = e.target.closest(".stock-link");
       if(!el) return;
       openChart(el.dataset.symbol);
     });
 </script>
-
-
 
 </body>
 </html>

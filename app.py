@@ -1,45 +1,73 @@
+# app.py  (updated: more accurate volume/VWAP + VWAP momentum/slope fields)
+import os
 import time
+import socket
 import threading
-import pandas as pd
+from collections import defaultdict, deque
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from kiteconnect import KiteConnect, KiteTicker
+import pandas as pd
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse
-import uvicorn
-
-LIVE_STARTED = False
-live_lock = threading.Lock()
-ticker = None
-import socket
-ws_dead = threading.Event()
-
+from kiteconnect import KiteConnect, KiteTicker
 
 
 # ================= CONFIG =================
-import os
-
 API_KEY = os.getenv("KITE_API_KEY")
 ACCESS_TOKEN = os.getenv("KITE_ACCESS_TOKEN")
-
 if not API_KEY or not ACCESS_TOKEN:
     raise RuntimeError("KITE_API_KEY or KITE_ACCESS_TOKEN not set")
-
 
 IST = ZoneInfo("Asia/Kolkata")
 LOOKBACK_DAYS = 20
 BUFFER_DAYS = 40
 
+SCRIPT_START = datetime.now(IST)
+
+LIVE_STARTED = False
+live_lock = threading.Lock()
+ticker: KiteTicker | None = None
+
+ws_dead = threading.Event()
+
+# Metrics
+tick_count = 0
+ticks_per_sec = 0.0
+last_tick_count = 0
+last_tick_time = time.time()
+metrics_lock = threading.Lock()
+tps_window = deque(maxlen=3)
+
+# Data locks
+df_lock = threading.Lock()
+tick_lock = threading.Lock()
+
 # ================= HELPERS =================
-def market_open():
-    t = datetime.now(IST).time()
-    return t >= datetime.strptime("09:15", "%H:%M").time() and t <= datetime.strptime("15:30", "%H:%M").time()
+def market_open() -> bool:
+    now = datetime.now(IST)
+    if now.weekday() >= 5:  # Sat/Sun
+        return False
+    t = now.time()
+    return datetime.strptime("09:15", "%H:%M").time() <= t <= datetime.strptime("15:30", "%H:%M").time()
+
+def internet_up() -> bool:
+    try:
+        socket.create_connection(("8.8.8.8", 53), timeout=2)
+        return True
+    except Exception:
+        return False
+
 
 # ================= FASTAPI =================
 app = FastAPI(title="Sector Flow Scanner")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 # ================= KITE =================
 kite = KiteConnect(api_key=API_KEY)
@@ -97,7 +125,7 @@ SECTOR_DEFINITIONS = {
         "ANGELONE", "RECLTD", "BAJFINANCE", "BSE", "MAXHEALTH",
         "ICICIGI", "HUDCO", "CHOLAFIN", "PFC", "HDFCAMC", "MUTHOOTFIN",
         "PAYTM", "JIOFIN", "SHRIRAMFIN", "SBICARD", "POLICYBZR",
-        "SBILIFE", "LICHSGFIN", "LICI", "MANAPPURAM", 'IRFC', "IIFL", "CDSL"
+        "SBILIFE", "LICHSGFIN", "LICI", "MANAPPURAM", "IRFC", "IIFL", "CDSL"
     ],
     "BANK": [
         "IDFCFIRSTB", "FEDERALBNK", "INDUSINDBK",
@@ -135,48 +163,56 @@ inst = inst[inst.tradingsymbol.isin(ALL_SYMBOLS)]
 TOKEN_TO_SYMBOL = dict(zip(inst.instrument_token, inst.tradingsymbol))
 SYMBOL_TO_TOKEN = dict(zip(inst.tradingsymbol, inst.instrument_token))
 
+missing = sorted(set(ALL_SYMBOLS) - set(SYMBOL_TO_TOKEN.keys()))
+if missing:
+    print("⚠️ Missing symbols not found in instrument dump (ignored):", missing)
+    # Remove missing symbols from sectors to avoid KeyError later
+    for sec, syms in list(SECTOR_DEFINITIONS.items()):
+        SECTOR_DEFINITIONS[sec] = [s for s in syms if s in SYMBOL_TO_TOKEN]
+    ALL_SYMBOLS = sorted(set(sum(SECTOR_DEFINITIONS.values(), [])))
+
 # ================= STORAGE =================
-df_1m = {s: pd.DataFrame(columns=[
-    "ts","vol","cum_vol","cum_turnover","vwap","last_price","vwap_dev"
-]) for s in ALL_SYMBOLS}
+# Per-stock minute dataframe built from live ticks
+df_1m = {
+    s: pd.DataFrame(columns=["ts", "vol", "cum_vol", "cum_turnover", "vwap", "last_price", "vwap_dev"])
+    for s in ALL_SYMBOLS
+}
 
-tick_buffer = {s: [] for s in ALL_SYMBOLS}
-df_lock = threading.Lock()
+# Accurate minute bucketing using cumulative day volume (volume_traded) deltas
+# minute_bucket[symbol][minute_ts] = {"vol": int, "turn": float, "last_price": float}
+minute_bucket = {
+    s: defaultdict(lambda: {"vol": 0, "turn": 0.0, "last_price": 0.0})
+    for s in ALL_SYMBOLS
+}
+last_day_volume = {s: None for s in ALL_SYMBOLS}  # last seen volume_traded
 
-tick_count = 0
-ticks_per_sec = 0
-last_tick_count = 0
-metrics_lock = threading.Lock()
 
-SCRIPT_START = datetime.now(IST)
-
-# ================= BASELINE =================
+# ================= BASELINE (20D AVG) =================
 def load_20d_avg():
     today = datetime.now(IST).date()
     start = today - timedelta(days=BUFFER_DAYS)
     out = {}
-    for s, t in SYMBOL_TO_TOKEN.items():
+    for s, tok in SYMBOL_TO_TOKEN.items():
         try:
-            d = pd.DataFrame(kite.historical_data(t, start, today, "day"))
-            out[s] = int(d.tail(LOOKBACK_DAYS)["volume"].mean())
-        except:
+            d = pd.DataFrame(kite.historical_data(tok, start, today, "day"))
+            out[s] = int(d.tail(LOOKBACK_DAYS)["volume"].mean()) if not d.empty else 1
+        except Exception:
             out[s] = 1
     return out
 
 STOCK_20D_AVG = load_20d_avg()
 
-# ================= EOD FALLBACK =================
+
+# ================= EOD FALLBACK (minute history after close) =================
 def load_eod_intraday():
     today = datetime.now(IST).date()
     fallback_day = today - timedelta(days=1)
 
-    for s, t in SYMBOL_TO_TOKEN.items():
+    for s, tok in SYMBOL_TO_TOKEN.items():
         try:
-            d = pd.DataFrame(kite.historical_data(t, today, today, "minute"))
-
+            d = pd.DataFrame(kite.historical_data(tok, today, today, "minute"))
             if d.empty:
-                d = pd.DataFrame(kite.historical_data(t, fallback_day, fallback_day, "minute"))
-
+                d = pd.DataFrame(kite.historical_data(tok, fallback_day, fallback_day, "minute"))
             if d.empty:
                 continue
 
@@ -185,44 +221,75 @@ def load_eod_intraday():
             d["vwap"] = d["cum_turnover"] / d["cum_vol"]
             d["vwap_dev"] = (d["close"] - d["vwap"]) / d["vwap"] * 100
 
-            df_1m[s] = d.rename(columns={
-                "date":"ts",
-                "volume":"vol",
-                "close":"last_price"
-            })[["ts","vol","cum_vol","cum_turnover","vwap","last_price","vwap_dev"]]
-
+            df_1m[s] = d.rename(
+                columns={"date": "ts", "volume": "vol", "close": "last_price"}
+            )[["ts", "vol", "cum_vol", "cum_turnover", "vwap", "last_price", "vwap_dev"]]
         except Exception as e:
             print("EOD load failed:", s, e)
 
 
-# ================= LIVE TICKS =================
+# ================= LIVE TICKS (accurate volume deltas) =================
+def _coerce_exchange_ts(tick: dict) -> datetime:
+    ts = tick.get("exchange_timestamp")
+    if isinstance(ts, datetime):
+        if ts.tzinfo is None:
+            return ts.replace(tzinfo=IST)
+        return ts.astimezone(IST)
+    return datetime.now(IST)
+
 def on_ticks(ws, ticks):
-    global tick_count
+    global tick_count, last_tick_time
+
     with metrics_lock:
         tick_count += len(ticks)
+        last_tick_time = time.time()
 
-    for t in ticks:
-        s = TOKEN_TO_SYMBOL.get(t["instrument_token"])
-        if s:
-            tick_buffer[s].append({
-                "ltq": t.get("last_traded_quantity", 0),
-                "price": t["last_price"]
-            })
+    with tick_lock:
+        for t in ticks:
+            s = TOKEN_TO_SYMBOL.get(t.get("instrument_token"))
+            if not s:
+                continue
 
+            price = float(t.get("last_price") or 0.0)
+            ex_ts = _coerce_exchange_ts(t)
+            minute = ex_ts.replace(second=0, microsecond=0)
+
+            vtt = t.get("volume_traded")  # cumulative day volume (best)
+            if vtt is not None:
+                vtt = int(vtt)
+                prev = last_day_volume.get(s)
+                delta_vol = max(vtt - prev, 0) if prev is not None else 0
+                last_day_volume[s] = vtt
+            else:
+                # fallback (less accurate) if volume_traded isn't available
+                delta_vol = int(t.get("last_traded_quantity") or 0)
+
+            if delta_vol > 0:
+                b = minute_bucket[s][minute]
+                b["vol"] += delta_vol
+                b["turn"] += delta_vol * price
+
+            # keep last price for that minute
+            minute_bucket[s][minute]["last_price"] = price
 
 def on_connect(ws, resp):
     print("✅ WebSocket connected / reconnected")
-    ws.subscribe(list(TOKEN_TO_SYMBOL.keys()))
-    ws.set_mode(ws.MODE_QUOTE, list(TOKEN_TO_SYMBOL.keys()))
+    tokens = list(TOKEN_TO_SYMBOL.keys())
+    ws.subscribe(tokens)
+    ws.set_mode(ws.MODE_FULL, tokens)  # FULL gives best chance of volume_traded + timestamps
 
 def on_close(ws, code, reason):
-    if not ws_dead.is_set():
-        print("❌ WebSocket closed:", code, reason)
-        ws_dead.set()
+    print("❌ WebSocket closed:", code, reason)
+    ws_dead.set()
+
+def on_error(ws, code, reason):
+    print("⚠️ WS error:", code, reason)
+    ws_dead.set()
 
 
+# ================= DAILY RESET =================
 def reset_intraday_state():
-    global df_1m, tick_buffer, tick_count, ticks_per_sec, last_tick_count, ticker, LIVE_STARTED
+    global tick_count, ticks_per_sec, last_tick_count, ticker, LIVE_STARTED, last_tick_time
 
     print("🧹 DAILY RESET @ 09:00 — clearing intraday state")
 
@@ -230,7 +297,7 @@ def reset_intraday_state():
         if ticker:
             ticker.close()
             print("🔌 WebSocket closed for clean session")
-    except:
+    except Exception:
         pass
 
     with live_lock:
@@ -239,40 +306,32 @@ def reset_intraday_state():
     with df_lock:
         for s in df_1m:
             df_1m[s].drop(df_1m[s].index, inplace=True)
-        for s in tick_buffer:
-            tick_buffer[s].clear()
 
-
+    with tick_lock:
+        for s in minute_bucket:
+            minute_bucket[s].clear()
+        for s in last_day_volume:
+            last_day_volume[s] = None
 
     with metrics_lock:
         tick_count = 0
-        ticks_per_sec = 0
+        ticks_per_sec = 0.0
         last_tick_count = 0
-
+        last_tick_time = time.time()
 
 
 def eod_reset_watcher():
     last_reset_date = None
-
     while True:
         now = datetime.now(IST)
-
-        if now.time() >= datetime.strptime("9:00", "%H:%M").time():
+        if now.time() >= datetime.strptime("09:00", "%H:%M").time():
             if last_reset_date != now.date():
                 reset_intraday_state()
                 last_reset_date = now.date()
-
         time.sleep(5)
 
 
-def internet_up():
-    try:
-        socket.create_connection(("8.8.8.8", 53), timeout=2)
-        return True
-    except:
-        return False
-
-
+# ================= LIVE MODE CONTROL =================
 def start_live_mode():
     global LIVE_STARTED, ticker
 
@@ -281,16 +340,11 @@ def start_live_mode():
             return
 
         print("🚀 Starting LIVE mode")
-
-        # NO reconnect args at all
         ticker = KiteTicker(API_KEY, ACCESS_TOKEN)
-
         ticker.on_ticks = on_ticks
         ticker.on_connect = on_connect
         ticker.on_close = on_close
-        ticker.on_error = lambda ws, code, reason: print(
-            "⚠️ WS error, waiting for reconnect...", code, reason
-        )
+        ticker.on_error = on_error
 
         ticker.connect(threaded=True)
         LIVE_STARTED = True
@@ -301,7 +355,7 @@ def ws_reviver():
     global LIVE_STARTED
 
     while True:
-        ws_dead.wait()  # wait until WS dies
+        ws_dead.wait()
 
         print("⏳ Waiting for internet to return...")
         while not internet_up():
@@ -311,11 +365,10 @@ def ws_reviver():
         time.sleep(2)
 
         with live_lock:
-            LIVE_STARTED = False  # allow restart
+            LIVE_STARTED = False
 
         start_live_mode()
         ws_dead.clear()
-
 
 
 def market_watcher():
@@ -326,71 +379,83 @@ def market_watcher():
             start_live_mode()
         was_open = now_open
         time.sleep(1)
+
+
 def ws_watchdog():
+    """Restart WS if no ticks are seen for a while during market hours."""
     global LIVE_STARTED, ticker
     while True:
-        time.sleep(60)
-        if ticks_per_sec == 0 and market_open():
-            print("🔄 TPS=0 detected — forcing WS restart")
+        time.sleep(30)
+        if not market_open():
+            continue
+        with metrics_lock:
+            idle = (time.time() - last_tick_time)
+        if idle > 45:  # no ticks for 45s while market open
+            print(f"🔄 No ticks for {int(idle)}s — forcing WS restart")
             try:
-                ticker.close()
-            except:
+                if ticker:
+                    ticker.close()
+            except Exception:
                 pass
             with live_lock:
                 LIVE_STARTED = False
             start_live_mode()
 
 
+# ================= 1-MIN AGGREGATION (flush completed minutes) =================
 def aggregate_1min():
-    last_min = None
     while True:
         now = datetime.now(IST)
+        cutoff = now.replace(second=0, microsecond=0)  # current minute start
 
-        # wait until second == 0 (minute close)
-        if now.second != 0:
-            time.sleep(0.2)
-            continue
+        # Determine minutes to flush without holding locks too long
+        with tick_lock:
+            to_flush = {s: [m for m in minute_bucket[s].keys() if m < cutoff] for s in ALL_SYMBOLS}
 
-        current_min = now.replace(second=0, microsecond=0)
-
-        if last_min == current_min:
-            time.sleep(0.2)
-            continue
-
+        did_any = False
         with df_lock:
-            for s, ticks in tick_buffer.items():
-                if not ticks:
+            for s, mins in to_flush.items():
+                if not mins:
                     continue
 
-                vol = sum(x["ltq"] for x in ticks)
-                turn = sum(x["ltq"] * x["price"] for x in ticks)
-                price = ticks[-1]["price"]
-                tick_buffer[s] = []
+                for m in sorted(mins):
+                    with tick_lock:
+                        b = minute_bucket[s].pop(m, None)
 
-                d = df_1m[s]
-                cum_vol = vol if d.empty else d.iloc[-1]["cum_vol"] + vol
-                cum_turn = turn if d.empty else d.iloc[-1]["cum_turnover"] + turn
-                vwap = cum_turn / cum_vol if cum_vol else 0
-                dev = (price - vwap) / vwap * 100 if vwap else 0
+                    if not b:
+                        continue
 
-                df_1m[s] = pd.concat([d, pd.DataFrame([{
-                    "ts": current_min,
-                    "vol": vol,
-                    "cum_vol": cum_vol,
-                    "cum_turnover": cum_turn,
-                    "vwap": round(vwap,2),
-                    "last_price": price,
-                    "vwap_dev": round(dev,2)
-                }])], ignore_index=True)
+                    vol = int(b["vol"])
+                    if vol <= 0:
+                        continue
 
-        last_min = current_min
-        time.sleep(0.5)
+                    turn = float(b["turn"])
+                    price = float(b["last_price"] or 0.0)
+
+                    d = df_1m[s]
+                    cum_vol = vol if d.empty else int(d.iloc[-1]["cum_vol"]) + vol
+                    cum_turn = turn if d.empty else float(d.iloc[-1]["cum_turnover"]) + turn
+                    vwap = (cum_turn / cum_vol) if cum_vol else 0.0
+                    dev = ((price - vwap) / vwap * 100.0) if vwap else 0.0
+
+                    df_1m[s] = pd.concat(
+                        [d, pd.DataFrame([{
+                            "ts": m,
+                            "vol": vol,
+                            "cum_vol": cum_vol,
+                            "cum_turnover": cum_turn,
+                            "vwap": round(vwap, 2),
+                            "last_price": price,
+                            "vwap_dev": round(dev, 2),
+                        }])],
+                        ignore_index=True
+                    )
+                    did_any = True
+
+        time.sleep(0.25 if did_any else 0.6)
 
 
-from collections import deque
-
-tps_window = deque(maxlen=3)
-
+# ================= TPS =================
 def tick_rate():
     global ticks_per_sec, last_tick_count
     while True:
@@ -399,16 +464,13 @@ def tick_rate():
             delta = tick_count - last_tick_count
             last_tick_count = tick_count
         tps_window.append(delta)
-        ticks_per_sec = round(sum(tps_window) / len(tps_window), 1)
+        ticks_per_sec = round(sum(tps_window) / len(tps_window), 1) if tps_window else 0.0
 
 
 # ================= API =================
 @app.get("/status")
 def status():
-    return {
-        "progress": 100,
-        "message": "LIVE" if market_open() else "Market Closed (EOD)"
-    }
+    return {"progress": 100, "message": "LIVE" if market_open() else "Market Closed (EOD)"}
 
 @app.get("/metrics")
 def metrics():
@@ -419,49 +481,68 @@ def metrics():
 def live():
     now = datetime.now(IST)
 
-    # 🟡 PRE-OPEN PROTECTION
+    # PREOPEN PROTECTION
     if now.time() < datetime.strptime("09:00", "%H:%M").time():
-        return {
-            "mode": "PREOPEN",
-            "started_at": SCRIPT_START.strftime("%H:%M:%S"),
-            "data": {}
-        }
+        return {"mode": "PREOPEN", "started_at": SCRIPT_START.strftime("%H:%M:%S"), "data": {}}
 
     data = {}
     with df_lock:
         for sector, syms in SECTOR_DEFINITIONS.items():
-            sl = sa = vw = ab = 0
+            sl = 0           # sector live volume
+            sa = 0           # sector avg (20D) volume sum
+            vw_w = 0.0       # for volume-weighted sector VWAP dev
+            ab = 0           # breadth count (vwap_dev > 0)
+            mom_w = 0.0      # volume-weighted VWAP slope (%/min)
             rows = []
 
             for s in syms:
                 d = df_1m[s]
 
                 lv = int(d.iloc[-1]["cum_vol"]) if not d.empty else 0
-                av = STOCK_20D_AVG.get(s, 1)
-                vd = float(d.iloc[-1]["vwap_dev"]) if not d.empty else 0
+                av = int(STOCK_20D_AVG.get(s, 1))
+                vd = float(d.iloc[-1]["vwap_dev"]) if not d.empty else 0.0
+
+                # VWAP momentum (5-min) as %/min
+                # slope_pct_5 = ((vwap_now - vwap_5min_ago)/vwap_5min_ago) * 100 / 5
+                vwap_slope_5_pct = 0.0
+                if len(d) >= 6:
+                    vwap_now = float(d.iloc[-1]["vwap"])
+                    vwap_5 = float(d.iloc[-6]["vwap"])
+                    if vwap_5:
+                        vwap_slope_5_pct = ((vwap_now - vwap_5) / vwap_5) * (100.0 / 5.0)
 
                 sl += lv
                 sa += av
-                vw += vd * lv
-                ab += vd > 0
+                vw_w += vd * lv
+                ab += 1 if vd > 0 else 0
+                mom_w += vwap_slope_5_pct * lv
 
                 rows.append({
                     "symbol": s,
                     "live_vol": lv,
                     "avg_20d_vol": av,
-                    "vwap_dev": round(vd, 2)
+                    "vwap_dev": round(vd, 2),
+                    "vwap_slope_5_pct": round(vwap_slope_5_pct, 4),  # NEW
                 })
 
-            sv = vw / sl if sl else 0
-            vr = sl / sa if sa else 0
+            sector_vwap = (vw_w / sl) if sl else 0.0
+            sector_vwap_slope_5_pct = (mom_w / sl) if sl else 0.0  # NEW
+
+            vr = (sl / sa) if sa else 0.0
             br = ab / max(len(syms), 1)
-            fss = round(0.5 * sv + 0.3 * vr + 0.2 * br, 2)
+
+            # Keep your original FSS; add momentum as a small extra term (optional, but useful)
+            # You can set momentum weight to 0.0 if you don't want it.
+            MOM_WT = 0.10
+            fss = 0.5 * sector_vwap + 0.3 * vr + 0.2 * br + MOM_WT * sector_vwap_slope_5_pct
+            fss = round(fss, 2)
 
             data[sector] = {
                 "stocks": rows,
-                "sector_live": sl,
-                "sector_avg": sa,
-                "sector_vwap": round(sv, 2),
+                "sector_live": int(sl),
+                "sector_avg": int(sa),
+                "sector_vwap": round(sector_vwap, 2),
+                "sector_vwap_slope_5_pct": round(sector_vwap_slope_5_pct, 4),  # NEW
                 "fss": fss
             }
 
@@ -471,21 +552,23 @@ def live():
         "data": data
     }
 
-
 @app.get("/")
 def index():
     return FileResponse("index.html")
 
+
+# ================= STARTUP =================
 @app.on_event("startup")
 def startup_event():
     now = datetime.now(IST)
+
+    # Reset intraday state once after 09:00 to avoid carrying old buffers
     if now.time() >= datetime.strptime("09:00", "%H:%M").time():
         reset_intraday_state()
 
-    # Load EOD data ONLY after market closes
+    # Load EOD minute history only after close
     if now.time() > datetime.strptime("15:30", "%H:%M").time():
         load_eod_intraday()
-
 
     threading.Thread(target=tick_rate, daemon=True).start()
     threading.Thread(target=aggregate_1min, daemon=True).start()
@@ -493,13 +576,6 @@ def startup_event():
     threading.Thread(target=ws_watchdog, daemon=True).start()
     threading.Thread(target=ws_reviver, daemon=True).start()
     threading.Thread(target=eod_reset_watcher, daemon=True).start()
+
     if now.time() < datetime.strptime("09:00", "%H:%M").time():
         print("⏳ PREOPEN — keeping intraday state empty")
-
-
-
-
-
-
-
-
